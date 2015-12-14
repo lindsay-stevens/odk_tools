@@ -1,5 +1,3 @@
-__author__ = 'Lstevens'
-
 import os
 import errno
 import argparse
@@ -19,6 +17,7 @@ Requires PIL and xlrd, written with python 2.7.6; updated to work with
 python 3.4 by changing xrange to range ("seems to work", not tested).
 """
 
+
 def sheet_to_list_of_ordereddict(sheet):
     """
     Convert a xlrd Sheet to a list of OrderedDict objects.
@@ -30,6 +29,7 @@ def sheet_to_list_of_ordereddict(sheet):
     """
     return [OrderedDict(zip(sheet._cell_values[0], row_data))
             for row_data in sheet._cell_values[1:]]
+
 
 def combine_survey_choices(survey, choices):
     """
@@ -43,6 +43,7 @@ def combine_survey_choices(survey, choices):
             list_name = row['type'].split(' ')[1]
             row['choices'] = [x for x in choices if x['list_name'] == list_name]
     return survey
+
 
 def get_language_list(survey):
     """
@@ -63,6 +64,7 @@ def get_language_list(survey):
         if '::' in header:
             headers.add(header.split('::')[1])
     return list(headers)
+
 
 def write_language_to_markdown(filepath, survey, language):
     """
@@ -105,8 +107,10 @@ def write_language_to_docx(filepath, survey, language, version):
     """
     Write each xform language out as a markdown file, with choices if any
 
+    :param filepath: path to file where docx files will be written
     :param survey: survey sheet values (list of OrderedDict)
     :param language: name of language to write
+    :param version: version name to write
     :return: Nothing
     """
     file = os.path.join(
@@ -200,6 +204,7 @@ def write_language_to_docx(filepath, survey, language, version):
 
     doc.save(file)
 
+
 def filter_survey_rows_for_writing(survey, languages, version):
     """
     Filter the survey item rows ready to be written out.
@@ -220,6 +225,7 @@ def filter_survey_rows_for_writing(survey, languages, version):
             r for r in survey if r[label] != '' and 'group' not in r['type']]
         write_dict[l] = [r for r in filter_rows if r[version] != '']
     return write_dict
+
 
 def read_xlsform(filepath):
     """
@@ -244,14 +250,6 @@ def read_xlsform(filepath):
         for lang, rows in s.items():
             write_language_to_docx(filepath, rows, lang, v)
 
-    #for l in languages:
-    #    label = 'label#{0}'.format(l)
-    #    filter_rows = [
-    #        r for r in survey if r[label] != '' and 'group' not in r['type']]
-    #    screening = [r for r in filter_rows if r['paper_scr'] != '']
-    #    follow_up = [r for r in filter_rows if r['paper_fu'] != '']
-    #    write_language_to_docx(filepath, screening, l)
-
 
 def read_xlsform2(filepath):
     """
@@ -262,6 +260,8 @@ def read_xlsform2(filepath):
         image_settings sheet, text_label_column = label (for value::english)
         survey sheet, label#english is used for label text (for english)
     Images are named using item name and language, like myitem_english
+
+    :param filepath: directory path to xlsform file to be read
     """
 
     # open the xlsform and read the image_settings
@@ -333,5 +333,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--filepath", help="path to xls form file")
     args = parser.parse_args()
-    #create_outdir(args.filepath)
+    # create_outdir(args.filepath)
     read_xlsform(args.filepath)
