@@ -156,14 +156,23 @@ def write_language_to_docx(filepath, survey, language, version):
 
         # Bold if it is any other kind of question
         else:
+            if row['relevant'] != '':
+                skip_fmt = 'Only answer if: {0}'
+                skip = doc.add_paragraph()
+                skip.add_run(skip_fmt.format(row['relevant'])).italic = True
+                skip.paragraph_format.keep_with_next = True
+                skip.paragraph_format.space_before = Pt(24)
+                skip.paragraph_format.space_after = Pt(0)
             q = doc.add_paragraph()
             q_num = ''
             if row[version] != 'x':
                 q_num = '{0}. '.format(int(row[version]))
             q_text = '{0}{1}'.format(q_num, row[label_survey])
             q.add_run(q_text).bold = True
-            q.paragraph_format.space_before = Pt(24)
+            if row['relevant'] == '':
+                q.paragraph_format.space_before = Pt(24)
             q.paragraph_format.keep_with_next = True
+
             if row[hint] != '':
                 h = doc.add_paragraph()
                 h.add_run(row[hint]).italic = True
