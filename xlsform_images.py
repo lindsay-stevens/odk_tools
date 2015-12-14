@@ -1,5 +1,3 @@
-__author__ = 'Lstevens'
-
 import os
 import errno
 import re
@@ -19,6 +17,7 @@ Places images into "out" subfolder of xlsform file directory.
 Requires PIL and xlrd, written with python 2.7.6; updated to work with 
 python 3.4 by changing xrange to range ("seems to work", not tested).
 """
+WARN_FMT = 'Warning: text line width exceeds image width for: {0} : {1}'
 
 
 def write_image_text(draw, pixels_from_top, mode, **kwargs):
@@ -43,6 +42,8 @@ def write_image_text(draw, pixels_from_top, mode, **kwargs):
         pixels_from_top += text_height + int(
             kwargs['{0}_pixels_line'.format(mode)]
         )
+        if int(text_width) > int(kwargs['image_width']):
+            print(WARN_FMT.format(kwargs['file_name'], line))
     # return the current spacing for further use
     return pixels_from_top
 
