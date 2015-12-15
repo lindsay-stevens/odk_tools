@@ -5,5 +5,5 @@
 *.pyc
 MANIFEST
 *.bat
-/test
+test/
 *.whl
