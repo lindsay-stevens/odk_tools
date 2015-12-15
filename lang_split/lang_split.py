@@ -1,6 +1,9 @@
+import argparse
+import time
 import os
 import errno
 import shutil
+import subprocess
 from lxml import etree
 from xlrd import open_workbook
 
@@ -36,8 +39,15 @@ def remove_xform_languages(document, namespaces, languages):
 def add_default_sid(document, namespaces, site_code):
     # find the subject id element and append the site code to the default value
     sid_xpath = './/xf:instance//xf:visit/xf:sid'
-    sid = document.getroot().xpath(sid_xpath, namespaces=namespaces)[0]
-    sid.text = '{0}{1}-'.format(sid.text, site_code)
+    sid = document.getroot().xpath(sid_xpath, namespaces=namespaces)
+    results = len(sid)
+    # proceed if the sid element was found
+    if results == 1:
+        sid[0].text = '{0}{1}-'.format(sid[0].text, site_code)
+    # print a warning and continue if the sid element was not found
+    else:
+        warn_fmt = 'Warn: Expected 1 instance sid element, found: {0}'
+        print(warn_fmt.format(results))
     return document
 
 
@@ -65,7 +75,7 @@ def create_output_directory(file_path, site_code, image_dir_name):
     except OSError:
         if OSError.errno != errno.EEXIST:
             pass  # raise
-    return images_dir
+    return images_dir, output_directory
 
 
 def copy_images_for_languages(image_dir, images, site_img_dir, languages):
@@ -79,27 +89,56 @@ def copy_images_for_languages(image_dir, images, site_img_dir, languages):
                 shutil.copy2(in_path, out_path)
 
 
-def main(xform, site_languages):
+def lang_split(xform, site_languages, path_to_7zip):
     directory = os.path.dirname(xform)
+    editions = os.path.join(directory, 'editions')
     file_name = os.path.basename(xform)
-    settings = read_site_language_list(site_languages)
-    image_dir_name = '{0}-media'.format(os.path.splitext(file_name)[0])
+    file_name_base = os.path.splitext(file_name)[0]
+
+    image_dir_name = '{0}-media'.format(file_name_base)
     image_dir = os.path.join(directory, image_dir_name)
     images = os.listdir(image_dir)
 
+    settings = read_site_language_list(site_languages)
+
     for site in settings:
+        languages = site[0]
+        site_code = site[2]
+
         # copy the images over for the languages available
-        site_img_dir = create_output_directory(
-                directory, site[2], image_dir_name)
-        copy_images_for_languages(image_dir, images, site_img_dir, site[0])
+        site_dir_img, site_dir = create_output_directory(
+                editions, site_code, image_dir_name)
+        copy_images_for_languages(image_dir, images, site_dir_img, languages)
 
         # read in the xform, remove not required languages, write out xform
         doc, nsp = read_xform(xform)
-        doc = remove_xform_languages(doc, nsp, site[0])
-        add_default_sid(doc, nsp, site[2])
-        doc.write(os.path.join(directory, site[2], file_name))
+        doc = remove_xform_languages(doc, nsp, site_code)
+
+        add_default_sid(doc, nsp, site_code)
+        xform_out = os.path.join(site_dir, file_name)
+        doc.write(xform_out)
+
+        # use 7zip to compress the files and remove them afterwards
+        zip_file_name = '{0}-{1}.7z'.format(file_name_base, site_code)
+        zip_file_path = os.path.join(editions, zip_file_name)
+        zip_fmt = '{0} a -t7z -mx9 -sdel {1} "{2}/*"'.format(
+                path_to_7zip, zip_file_path, site_dir)
+        subprocess.Popen(zip_fmt, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+        # while the site directory is empty, wait 100ms then check again
+        while os.listdir(site_dir):
+            time.sleep(0.1)
+        # once the site directory is empty, remove it and move on to next site.
+        os.rmdir(site_dir)
 
 
-FILE_PATH_IN = "C:/Users/Lstevens/Documents/repos/odk_tools/odk_tools/lang_split/test/R1309_BEHAVE.xml"
-SITE_LANGS = "C:/Users/Lstevens/Documents/repos/odk_tools/odk_tools/lang_split/test/site_languages.xlsx"
-main(FILE_PATH_IN, SITE_LANGS)
+if __name__ == '__main__':
+    # grab the command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--xform", help="path to xform xml file to split")
+    parser.add_argument(
+            "-l", "--sitelangs",
+            help="path to xlsx file with sites and languages specified")
+    parser.add_argument("-z", "--zipexe", help="path to 7zip.exe")
+    args = parser.parse_args()
+    lang_split(args.xform, args.sitelangs, args.zipexe)
