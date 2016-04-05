@@ -4,6 +4,7 @@ import os
 import errno
 import shutil
 import subprocess
+import concurrent.futures
 from lxml import etree
 from xlrd import open_workbook
 
@@ -36,18 +37,22 @@ def remove_xform_languages(document, namespaces, languages):
     return document
 
 
-def add_default_sid(document, namespaces, site_code):
+def add_default_sid(document, namespaces, site_code, file_name_base):
     # find the subject id element and append the site code to the default value
     sid_xpath = './/xf:instance//xf:visit/xf:sid'
     sid = document.getroot().xpath(sid_xpath, namespaces=namespaces)
     results = len(sid)
+    skip_msg = 'Skipped adding site code to SID for {0} to form {1}: {2}.'
     # proceed if the sid element was found
     if results == 1:
         sid[0].text = '{0}{1}-'.format(sid[0].text, site_code)
+        add_msg = 'Added site code to SID for {0} to form {1}.'
+        print(add_msg.format(site_code, file_name_base))
     # print a warning and continue if the sid element was not found
+    elif results == 0:
+        print(skip_msg.format(site_code, file_name_base, '0 SID items found'))
     else:
-        warn_fmt = 'Warn: Expected 1 instance sid element, found: {0}'
-        print(warn_fmt.format(results))
+        print(skip_msg.format(site_code, file_name_base, '>1 SID item found'))
     return document
 
 
@@ -89,6 +94,22 @@ def copy_images_for_languages(image_dir, images, site_img_dir, languages):
                 shutil.copy2(in_path, out_path)
 
 
+def zip_concurrently(zip_jobs, site_dirs):
+    run_args = {'stdin': subprocess.PIPE, 'stdout': subprocess.PIPE}
+    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as ex:
+        futures = [ex.submit(subprocess.run, j, **run_args) for j in zip_jobs]
+    results = concurrent.futures.wait(futures, timeout=180)
+    for f in concurrent.futures.as_completed(futures):
+        result = f.result()
+        if result.returncode != 0:
+            error_msg = 'Zip command returned an error code: {0}, {0}'
+            print(error_msg.format(result.returncode, result.args))
+    for site_dir in site_dirs:
+        while os.listdir(site_dir):
+            time.sleep(0.1)
+        os.rmdir(site_dir)
+
+
 def lang_split(xform, site_languages, path_to_7zip):
     directory = os.path.dirname(xform)
     editions = os.path.join(directory, 'editions')
@@ -100,6 +121,9 @@ def lang_split(xform, site_languages, path_to_7zip):
     images = os.listdir(image_dir)
 
     settings = read_site_language_list(site_languages)
+    
+    zip_jobs = list()
+    site_dirs = list()
 
     for site in settings:
         languages = site[0]
@@ -112,25 +136,21 @@ def lang_split(xform, site_languages, path_to_7zip):
 
         # read in the xform, remove not required languages, write out xform
         doc, nsp = read_xform(xform)
-        doc = remove_xform_languages(doc, nsp, site_code)
+        doc = remove_xform_languages(doc, nsp, languages)
 
-        add_default_sid(doc, nsp, site_code)
+        add_default_sid(doc, nsp, site_code, file_name_base)
         xform_out = os.path.join(site_dir, file_name)
         doc.write(xform_out)
 
         # use 7zip to compress the files and remove them afterwards
-        zip_file_name = '{0}-{1}.7z'.format(file_name_base, site_code)
+        zip_file_name = '{0}-{1}.zip'.format(file_name_base, site_code)
         zip_file_path = os.path.join(editions, zip_file_name)
-        zip_fmt = '{0} a -t7z -mx9 -sdel {1} "{2}/*"'.format(
-                path_to_7zip, zip_file_path, site_dir)
-        subprocess.Popen(zip_fmt, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        zip_fmt = '{0} a -tzip -mx9 -sdel {1} "{2}/{3}*"'.format(
+                path_to_7zip, zip_file_path, site_dir, file_name_base)
+        zip_jobs.append(zip_fmt)
+        site_dirs.append(site_dir)
 
-        # while the site directory is empty, wait 100ms then check again
-        while os.listdir(site_dir):
-            time.sleep(0.1)
-        # once the site directory is empty, remove it and move on to next site.
-        os.rmdir(site_dir)
-
+    zip_concurrently(zip_jobs, site_dirs)
 
 if __name__ == '__main__':
     # grab the command line arguments
