@@ -1,7 +1,6 @@
 import argparse
 import time
 import os
-import errno
 import shutil
 import subprocess
 import concurrent.futures
@@ -18,7 +17,7 @@ logger = logging.getLogger('odk_tools.language_editions')
 class Editions(object):
 
     @staticmethod
-    def map_xf_to_xform_namespace(document):
+    def _map_xf_to_xform_namespace(document):
         """
         Map 'xf' as the alias for the xforms namespace instead of None.
 
@@ -32,7 +31,7 @@ class Editions(object):
         return namespaces
 
     @staticmethod
-    def update_xform_languages(document, namespaces, languages):
+    def _update_xform_languages(document, namespaces, languages):
         """
         Remove translations that are not listed, and mark the first as default.
 
@@ -42,15 +41,12 @@ class Editions(object):
         :param languages: list. Languages to keep.
         :return: etree.ElementTree. Document with languages updated.
         """
-        # locate the translation elements
         translations = document.getroot().xpath(
             './/xf:translation', namespaces=namespaces)
         for t in translations:
-            # remove languages not in the language list
             if t.attrib['lang'] not in languages:
                 t.getparent().remove(t)
 
-            # set the first listed language to the default
             if t.attrib['lang'] == languages[0]:
                 t.attrib['default'] = 'true()'
             else:
@@ -59,7 +55,7 @@ class Editions(object):
         return document
 
     @staticmethod
-    def add_site_to_default_sid(document, namespaces, site_code):
+    def _add_site_to_default_sid(document, namespaces, site_code):
         """
         Find the SID form element and append the site code to the default value.
 
@@ -77,11 +73,11 @@ class Editions(object):
         if results == 1:
             sid[0].text = '{0}{1}-'.format(sid[0].text, site_code)
             appended = True
-        logger.log(logging.INFO, log_msg.format(site_code, results, appended))
+        logger.info(log_msg.format(site_code, results, appended))
         return document
 
     @staticmethod
-    def read_site_languages(file_path):
+    def _read_site_languages(file_path):
         """
         Read the list of sites and required languages from an XLSX file.
 
@@ -93,7 +89,6 @@ class Editions(object):
         :params file_path: str. Path to site languages spreadsheet.
         :return: dict. Keys are site codes, values are language lists.
         """
-        # read in the site languages spreadsheet, first sheet only
         workbook = open_workbook(filename=file_path)
         sheet = workbook.sheet_by_index(0)
         site_settings = dict()
@@ -104,96 +99,147 @@ class Editions(object):
         return site_settings
 
     @staticmethod
-    def create_output_directory(parent_folder, site_code, media_folder):
+    def _create_output_directory(parent_path, site_code, media_folder):
         """
-        In the parent_folder, create a directory for the site files.
+        Create a directory for the site xform files in the parent folder.
 
         Parameters.
-        :params parent_folder: str. Path to the folder to create in.
+        :params parent_path: str. Path to the folder to create in.
         :params site_code: str. Site code, which will become the folder name.
         :params media_folder: str. The xform media folder name.
         """
-        site_dir = os.path.join(parent_folder, site_code)
+        site_dir = os.path.join(parent_path, site_code)
         media_dir = os.path.join(site_dir, media_folder)
         os.makedirs(media_dir, exist_ok=True)
         return site_dir, media_dir
 
+    @staticmethod
+    def _copy_images_for_languages(source_path, target_path, languages):
+        """
+        Copy xform question images for the languages to the site folder.
 
-def copy_images_for_languages(image_dir, images, site_img_dir, languages):
-    # copy from the media folder any files ending with the language name
-    for image in images:
-        image_file_name = os.path.splitext(image)[0]
-        for lang in languages:
-            if image_file_name.endswith(lang):
-                out_path = os.path.join(site_img_dir, image)
-                in_path = os.path.join(image_dir, image)
-                shutil.copy2(in_path, out_path)
+        Images are matched to a language assuming the file naming convention of
+        itemName_languageName.jpg.
 
+        Parameters.
+        :params source_path: str. Path to all xform images.
+        :params target_path: str. Path to copy to.
+        :params languages: list. Languages to copy images for.
+        """
+        copy_jobs = list()
+        images = os.listdir(source_path)
+        for image in images:
+            image_file_name = os.path.splitext(image)[0]
+            for lang in languages:
+                if image_file_name.endswith(lang):
+                    out_path = os.path.join(target_path, image)
+                    in_path = os.path.join(source_path, image)
+                    copy_jobs.append((in_path, out_path))
+                    shutil.copy2(in_path, out_path)
 
-def zip_concurrently(zip_jobs, site_dirs):
-    run_args = {'stdin': subprocess.PIPE, 'stdout': subprocess.PIPE}
-    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as ex:
-        futures = [ex.submit(subprocess.run, j, **run_args) for j in zip_jobs]
-    results = concurrent.futures.wait(futures, timeout=180)
-    for f in concurrent.futures.as_completed(futures):
-        result = f.result()
-        if result.returncode != 0:
-            error_msg = 'Zip command returned an error code: {0}, {0}'
-            print(error_msg.format(result.returncode, result.args))
-    for site_dir in site_dirs:
-        while os.listdir(site_dir):
-            time.sleep(0.1)
-        os.rmdir(site_dir)
+    @staticmethod
+    def _prepare_zip_job(z7zip_path, source_path, form_name, site_code):
+        """
+        Build a 7zip command string for archiving the site xform files.
 
-
-def lang_split(xform, site_languages, path_to_7zip):
-    directory = os.path.dirname(xform)
-    editions = os.path.join(directory, 'editions')
-    file_name = os.path.basename(xform)
-    file_name_base = os.path.splitext(file_name)[0]
-
-    image_dir_name = '{0}-media'.format(file_name_base)
-    image_dir = os.path.join(directory, image_dir_name)
-    images = os.listdir(image_dir)
-
-    settings = Editions.read_site_languages(site_languages)
-    
-    zip_jobs = list()
-    site_dirs = list()
-
-    for site_code, languages in settings.items():
-
-        # copy the images over for the languages available
-        site_dir, site_dir_img = Editions.create_output_directory(
-                editions, site_code, image_dir_name)
-        copy_images_for_languages(image_dir, images, site_dir_img, languages)
-
-        # read in the xform, remove not required languages, write out xform
-        doc = etree.parse(xform)
-        nsp = Editions.map_xf_to_xform_namespace(doc)
-        doc = Editions.update_xform_languages(doc, nsp, languages)
-
-        Editions.add_site_to_default_sid(doc, nsp, site_code)
-        xform_out = os.path.join(site_dir, file_name)
-        doc.write(xform_out)
-
-        # use 7zip to compress the files and remove them afterwards
-        zip_file_name = '{0}-{1}.zip'.format(file_name_base, site_code)
-        zip_file_path = os.path.join(editions, zip_file_name)
+        Parameters.
+        :param z7zip_path: str. Path to 7zip executable.
+        :param source_path: str. Path to site folder.
+        :param form_name: str. XForm name.
+        :param site_code: str. Site code.
+        """
+        target_file = '{0}-{1}.zip'.format(form_name, site_code)
+        target_path = os.path.join(os.path.dirname(source_path), target_file)
         zip_fmt = '{0} a -tzip -mx9 -sdel {1} "{2}/{3}*"'.format(
-                path_to_7zip, zip_file_path, site_dir, file_name_base)
-        zip_jobs.append(zip_fmt)
-        site_dirs.append(site_dir)
+            z7zip_path, target_path, source_path, form_name)
+        return zip_fmt
 
-    zip_concurrently(zip_jobs, site_dirs)
+    @staticmethod
+    def _zip_concurrently(jobs, site_dirs):
+        """
+        Execute zip jobs concurrently, and remove archived folders once done.
+
+        Parameters.
+        :param jobs: list. 7zip command strings to execute.
+        :param site_dirs: list. Folders to be removed after archiving.
+        """
+
+        logger.info('Running {0} zip jobs.'.format(len(jobs)))
+        run_args = {'stdin': subprocess.PIPE, 'stdout': subprocess.PIPE}
+        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as ex:
+            futures = [ex.submit(subprocess.run, j, **run_args) for j in jobs]
+        for f in concurrent.futures.as_completed(futures):
+            result = f.result()
+            if result.returncode != 0:
+                error_msg = 'Zip command returned an error code: {0}, {0}'
+                print(error_msg.format(result.returncode, result.args))
+        logger.info('Zip jobs finished.')
+        logger.info('Removing {0} site dirs.'.format(len(site_dirs)))
+        for site_dir in site_dirs:
+            while os.listdir(site_dir):
+                time.sleep(0.1)
+            os.rmdir(site_dir)
+        logger.info('Site dirs removed.')
+
+    @staticmethod
+    def language_editions(xform, site_languages, z7zip_path):
+        """
+        Coordinate the other class methods to create xform language editions.
+
+        Parameters.
+        :param xform: str. Path to XForm file. It is assumed that the
+            "xform-media" folder is in the same directory as the Xform.
+        :param site_languages: str. Path to XLSX file specifying the sites to
+            create editions for, and which languages each should get.
+        :param z7zip_path: str. Path to 7zip executable.
+        """
+        parent_path = os.path.dirname(xform)
+        editions = os.path.join(parent_path, 'editions')
+
+        xform_file_name_full = os.path.basename(xform)
+        xform_file_name = os.path.splitext(xform_file_name_full)[0]
+
+        xform_media_name = '{0}-media'.format(xform_file_name)
+        xform_media_path = os.path.join(parent_path, xform_media_name)
+
+        settings = Editions._read_site_languages(site_languages)
+
+        zip_jobs = list()
+        site_dirs = list()
+
+        for site_code, languages in settings.items():
+
+            site_dir, site_dir_img = Editions._create_output_directory(
+                    editions, site_code, xform_media_name)
+            Editions._copy_images_for_languages(
+                xform_media_path, site_dir_img, languages)
+
+            doc = etree.parse(xform)
+            nsp = Editions._map_xf_to_xform_namespace(doc)
+            doc = Editions._update_xform_languages(doc, nsp, languages)
+            doc = Editions._add_site_to_default_sid(doc, nsp, site_code)
+            xform_out = os.path.join(site_dir, xform_file_name_full)
+            doc.write(xform_out)
+
+            job = Editions._prepare_zip_job(
+                z7zip_path, site_dir, xform_file_name, site_code)
+            zip_jobs.append(job)
+            site_dirs.append(site_dir)
+
+        Editions._zip_concurrently(zip_jobs, site_dirs)
+
 
 if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--xform", help="path to xform xml file to split")
     parser.add_argument(
-            "-l", "--sitelangs",
-            help="path to xlsx file with sites and languages specified")
-    parser.add_argument("-z", "--zipexe", help="path to 7zip.exe")
+        "-f", "--xform",
+        help="path to xform xml file to split by language.")
+    parser.add_argument(
+        "-l", "--sitelangs",
+        help="path to xlsx file with sites and languages specified.")
+    parser.add_argument(
+        "-z", "--zipexe",
+        help="path to 7zip executable.")
     args = parser.parse_args()
-    lang_split(args.xform, args.sitelangs, args.zipexe)
+    Editions.language_editions(args.xform, args.sitelangs, args.zipexe)
