@@ -9,6 +9,8 @@ from odk_tools.language_editions.editions import Editions
 
 
 class TestEditions(unittest.TestCase):
+    # TODO: update tests to use question_images so *.png files aren't in git.
+    # Interim fix: exclude .png from MANFEST.in.
 
     def setUp(self):
         self.xform1 = 'Q1309_BEHAVE.xml'
