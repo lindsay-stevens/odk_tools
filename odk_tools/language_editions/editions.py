@@ -203,6 +203,8 @@ class Editions(object):
         :param languages: list. Languages applicable to the site.
         :return site_path: str. Path to prepared site directory.
         """
+        log_msg = 'Preparing files for site: {0}, languages: {1}'
+        logger.info(log_msg.format(site_code, languages))
         parent_path = os.path.dirname(xform_path)
 
         xform_file_name_full = os.path.basename(xform_path)
@@ -221,6 +223,7 @@ class Editions(object):
         doc = Editions._add_site_to_default_sid(doc, nsp, site_code)
         xform_out = os.path.join(site_path, xform_file_name_full)
         doc.write(xform_out)
+        logger.info('Finished preparing site.')
 
         return site_path
 
