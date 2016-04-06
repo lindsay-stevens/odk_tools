@@ -13,7 +13,7 @@ Creates image files with xlsform question text.
 
 Run on command line with "-f" parameter which is path to xlsform file.
 Image settings sheet must have all parameters set. Can process multiple langs.
-Places images into "out" subfolder of xlsform file directory.
+Places images into "FILENAME-media" subfolder of xlsform file directory.
 Requires PIL and xlrd, written with python 2.7.6; updated to work with 
 python 3.4 by changing xrange to range ("seems to work", not tested).
 """
@@ -89,7 +89,7 @@ def write_image_paste(image, pixels_from_top, mode, **kwargs):
     return image, pixels_from_top
 
 
-def write_image(**kwargs):
+def write_image(output_path, **kwargs):
     """
     Creates a base image, writes on the specified text and images and saves it.
     """
@@ -121,9 +121,9 @@ def write_image(**kwargs):
             image=image, pixels_from_top=pixels_from_top, mode='nest', **kwargs
         )
 
-    # write the file to an 'out' subdirectory as png file
+    # write the file to the output_path as png file
     item_filename_ext = os.path.join(
-        kwargs['file_path'], 'out', '{0}.png'.format(kwargs['file_name']))
+        output_path, '{0}.png'.format(kwargs['file_name']))
     image.save(item_filename_ext, 'PNG', dpi=[300, 300])
 
 
@@ -161,9 +161,9 @@ def wrap_text(text, wrap_chars):
     return text_list
 
 
-def read_xlsform(filepath):
+def read_xlsform(output_path, filepath):
     """
-    Read form config from xls form file, write images to 'out' sub-folder.
+    Read form config from xls form file, write images to the output_path.
 
     Requires image_settings sheet with all configs set for each language
     Looks for survey sheet columns with same language, for example:
@@ -233,19 +233,21 @@ def read_xlsform(filepath):
                         image_settings_kwargs['nest_image_path'] = \
                             nest_image_path
 
-                write_image(**image_settings_kwargs)
+                write_image(output_path, **image_settings_kwargs)
 
 if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--filepath", help="path to xls form file")
     args = parser.parse_args()
-    outpath = os.path.join(os.path.dirname(args.filepath), 'out')
+    out_folder = '{0}-media'.format(
+        os.path.splitext(os.path.basename(args.filepath))[0])
+    out_path = os.path.join(os.path.dirname(args.filepath), out_folder)
 
     # make sure the output folder exists and read the xlsform
     try:
-        os.makedirs(outpath)
+        os.makedirs(out_path)
     except OSError as exception:
         if exception.errno != errno.EEXIST:
             raise
-    read_xlsform(args.filepath)
+    read_xlsform(out_path, args.filepath)
