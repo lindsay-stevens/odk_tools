@@ -243,6 +243,7 @@ class Editions(object):
             sequentially. If running the script as a pyinstaller single exe,
             only sequential mode can work.
         """
+        xform_path = os.path.abspath(xform_path)
         settings = Editions._read_site_languages(site_languages)
         xform_file_name = os.path.splitext(os.path.basename(xform_path))[0]
         output_path = os.path.join(os.path.dirname(xform_path), 'editions')
