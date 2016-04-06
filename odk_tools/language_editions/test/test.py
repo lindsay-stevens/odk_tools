@@ -81,6 +81,7 @@ class TestEditions(unittest.TestCase):
     def test_create_output_directory(self):
         """Should create a directory tree."""
         parent_path = 'editions_create'
+        shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '12345'
         media_folder = 'Q1309_BEHAVE-media'
 
@@ -95,6 +96,7 @@ class TestEditions(unittest.TestCase):
     def test_copy_images_for_languages(self):
         """Should copy images for the specified languages."""
         parent_path = 'editions_copy'
+        shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '99999'
         source_media_folder = 'R1309_BEHAVE-media'
         langs = ['english', 'french']
@@ -120,10 +122,11 @@ class TestEditions(unittest.TestCase):
         expected = '7zip a -tzip -mx9 -sdel form-site.zip "source/form*"'
         self.assertEqual(expected, observed)
 
-    def test_zip_concurrently(self):
+    def test_execute_zip_jobs(self):
         """Should result in a zip file named by site, with expected images."""
         curdir = os.path.dirname(__file__)
         parent_path = os.path.join(curdir, 'editions_zip')
+        shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '61202'
         form_name = 'Q1309_BEHAVE'
         source_media_folder = 'Q1309_BEHAVE-media'
@@ -132,28 +135,53 @@ class TestEditions(unittest.TestCase):
             source_media_folder, x)) for x in langs]
         images_count = len(tuple(itertools.chain.from_iterable(find_images)))
 
-        site_dir, target_media_dir = Editions._create_output_directory(
-            parent_path, site_code, source_media_folder)
-        Editions._copy_images_for_languages(
-            source_media_folder, target_media_dir, langs)
+        site_path = Editions._prepare_site_files(
+            parent_path, self.xform1, site_code, langs)
         job = Editions._prepare_zip_job(
-            self.z7zip_path, site_dir, form_name, site_code)
-        Editions._zip_concurrently([job], [site_dir])
+            self.z7zip_path, site_path, form_name, site_code)
+        Editions._execute_zip_jobs([job])
 
-        observed_files = os.listdir(parent_path)[0]
+        observed_files = [x for x in os.listdir(parent_path) if x.endswith('.zip')]
         expected_files = '{0}-{1}.zip'.format(form_name, site_code)
-        self.assertEqual(expected_files, observed_files)
+        self.assertEqual([expected_files], observed_files)
 
         zip_path = os.path.join(parent_path, expected_files)
         zip_out = zipfile.ZipFile(zip_path)
         zip_item_count = len(zip_out.infolist())
         zip_out.close()
-        self.assertEqual(images_count + 1, zip_item_count)
+        # 2 extras: media directory, and the xform file.
+        self.assertEqual(images_count + 2, zip_item_count)
+
+        shutil.rmtree(parent_path, ignore_errors=True)
+
+    def test_clean_up_site_dirs(self):
+        """Should remove all empty site dirs."""
+        curdir = os.path.dirname(__file__)
+        parent_path = os.path.join(curdir, 'editions_zip')
+        shutil.rmtree(parent_path, ignore_errors=True)
+        site_code = '61310'
+        form_name = 'Q1309_BEHAVE'
+        langs = ['english']
+
+        site_path = Editions._prepare_site_files(
+            parent_path, self.xform1, site_code, langs)
+        job = Editions._prepare_zip_job(
+            self.z7zip_path, site_path, form_name, site_code)
+
+        Editions._execute_zip_jobs([job])
+        pre_cleanup = [
+            x for x in os.listdir(parent_path) if not x.endswith('.zip')]
+        self.assertEqual(1, len(pre_cleanup))
+        Editions._clean_up_empty_site_dirs([site_path])
+        post_cleanup = [
+            x for x in os.listdir(parent_path) if not x.endswith('.zip')]
+        self.assertEqual(0, len(post_cleanup))
 
         shutil.rmtree(parent_path, ignore_errors=True)
 
     def test_language_editions(self):
         """Should process all listed sites into zip files."""
+        shutil.rmtree('editions', ignore_errors=True)
         xform_path = os.path.realpath(self.xform1)
         site_langs_path = os.path.realpath('site_languages.xlsx')
         z7zip_path = self.z7zip_path

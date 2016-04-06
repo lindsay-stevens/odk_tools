@@ -155,25 +155,36 @@ class Editions(object):
         return zip_fmt
 
     @staticmethod
-    def _zip_concurrently(jobs, site_dirs):
+    def _execute_zip_jobs(jobs, concurrently=False):
         """
-        Execute zip jobs concurrently, and remove archived folders once done.
+        Execute zip jobs.
 
         Parameters.
         :param jobs: list. 7zip command strings to execute.
-        :param site_dirs: list. Folders to be removed after archiving.
+        :param concurrently: bool. If True, use multiple processes.
         """
-
         logger.info('Running {0} zip jobs.'.format(len(jobs)))
         run_args = {'stdin': subprocess.PIPE, 'stdout': subprocess.PIPE}
-        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as ex:
-            futures = [ex.submit(subprocess.run, j, **run_args) for j in jobs]
-        for f in concurrent.futures.as_completed(futures):
-            result = f.result()
-            if result.returncode != 0:
-                error_msg = 'Zip command returned an error code: {0}, {0}'
-                print(error_msg.format(result.returncode, result.args))
+        error_msg = 'Zip command returned an error code: {0}, {0}'
+        if concurrently:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=4) as ex:
+                fut = [ex.submit(subprocess.run, j, **run_args) for j in jobs]
+            results = [f.result() for f in concurrent.futures.as_completed(fut)]
+        else:
+            results = [subprocess.run(j, **run_args) for j in jobs]
+        for r in results:
+            if r.returncode != 0:
+                logger.error(error_msg.format(r.returncode, r.args))
         logger.info('Zip jobs finished.')
+
+    @staticmethod
+    def _clean_up_empty_site_dirs(site_dirs):
+        """
+        Remove empty folders (whose contents were archived into zip folders).
+
+        Parameters.
+        :param site_dirs: list. Folders to be removed after archiving.
+        """
         logger.info('Removing {0} site dirs.'.format(len(site_dirs)))
         for site_dir in site_dirs:
             while os.listdir(site_dir):
@@ -182,64 +193,89 @@ class Editions(object):
         logger.info('Site dirs removed.')
 
     @staticmethod
-    def language_editions(xform, site_languages, z7zip_path):
+    def _prepare_site_files(output_path, xform_path, site_code, languages):
+        """
+        Prepare the files for a site edition.
+
+        Parameters.
+        :param xform_path: str. Path to xform being processed.
+        :param site_code: str. Site code.
+        :param languages: list. Languages applicable to the site.
+        :return site_path: str. Path to prepared site directory.
+        """
+        parent_path = os.path.dirname(xform_path)
+
+        xform_file_name_full = os.path.basename(xform_path)
+        xform_file_name = os.path.splitext(xform_file_name_full)[0]
+        xform_media_name = '{0}-media'.format(xform_file_name)
+        xform_media_path = os.path.join(parent_path, xform_media_name)
+
+        site_path, site_dir_img = Editions._create_output_directory(
+            output_path, site_code, xform_media_name)
+        Editions._copy_images_for_languages(
+            xform_media_path, site_dir_img, languages)
+
+        doc = etree.parse(xform_path)
+        nsp = Editions._map_xf_to_xform_namespace(doc)
+        doc = Editions._update_xform_languages(doc, nsp, languages)
+        doc = Editions._add_site_to_default_sid(doc, nsp, site_code)
+        xform_out = os.path.join(site_path, xform_file_name_full)
+        doc.write(xform_out)
+
+        return site_path
+
+    @staticmethod
+    def language_editions(
+            xform_path, site_languages, z7zip_path, concurrently=False):
         """
         Coordinate the other class methods to create xform language editions.
 
         Parameters.
-        :param xform: str. Path to XForm file. It is assumed that the
+        :param xform_path: str. Path to XForm file. It is assumed that the
             "xform-media" folder is in the same directory as the Xform.
         :param site_languages: str. Path to XLSX file specifying the sites to
             create editions for, and which languages each should get.
         :param z7zip_path: str. Path to 7zip executable.
+        :param concurrently: bool. Execute zip jobs concurrently, instead of
+            sequentially. If running the script as a pyinstaller single exe,
+            only sequential mode can work.
         """
-        parent_path = os.path.dirname(xform)
-        editions = os.path.join(parent_path, 'editions')
-
-        xform_file_name_full = os.path.basename(xform)
-        xform_file_name = os.path.splitext(xform_file_name_full)[0]
-
-        xform_media_name = '{0}-media'.format(xform_file_name)
-        xform_media_path = os.path.join(parent_path, xform_media_name)
-
         settings = Editions._read_site_languages(site_languages)
+        xform_file_name = os.path.splitext(os.path.basename(xform_path))[0]
+        output_path = os.path.join(os.path.dirname(xform_path), 'editions')
 
         zip_jobs = list()
-        site_dirs = list()
-
+        site_paths = list()
         for site_code, languages in settings.items():
+            site_path = Editions._prepare_site_files(
+                output_path, xform_path, site_code, languages)
+            zip_job = Editions._prepare_zip_job(
+                z7zip_path, site_path, xform_file_name, site_code)
+            zip_jobs.append(zip_job)
+            site_paths.append(site_path)
 
-            site_dir, site_dir_img = Editions._create_output_directory(
-                    editions, site_code, xform_media_name)
-            Editions._copy_images_for_languages(
-                xform_media_path, site_dir_img, languages)
-
-            doc = etree.parse(xform)
-            nsp = Editions._map_xf_to_xform_namespace(doc)
-            doc = Editions._update_xform_languages(doc, nsp, languages)
-            doc = Editions._add_site_to_default_sid(doc, nsp, site_code)
-            xform_out = os.path.join(site_dir, xform_file_name_full)
-            doc.write(xform_out)
-
-            job = Editions._prepare_zip_job(
-                z7zip_path, site_dir, xform_file_name, site_code)
-            zip_jobs.append(job)
-            site_dirs.append(site_dir)
-
-        Editions._zip_concurrently(zip_jobs, site_dirs)
+        Editions._execute_zip_jobs(zip_jobs, concurrently)
+        Editions._clean_up_empty_site_dirs(site_paths)
 
 
 if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-f", "--xform",
-        help="path to xform xml file to split by language.")
+        "--xform", dest='xform',
+        help="Path to xform xml file to split by language.")
     parser.add_argument(
-        "-l", "--sitelangs",
-        help="path to xlsx file with sites and languages specified.")
+        "--sitelangs", dest='sitelangs',
+        help="Path to xlsx file with sites and languages specified.")
     parser.add_argument(
-        "-z", "--zipexe",
-        help="path to 7zip executable.")
+        "--zipexe", dest='zipexe',
+        help="Path to 7zip executable.")
+    parser.add_argument(
+        "--concurrently", dest='concurrently', action='store_true',
+        help="Run the zip jobs concurrently (up to 4 at a time), instead of"
+             "sequentially. If running from a pyinstaller single exe, "
+             "only sequential mode can work.")
+    parser.set_defaults(concurrently=False)
     args = parser.parse_args()
-    Editions.language_editions(args.xform, args.sitelangs, args.zipexe)
+    Editions.language_editions(args.xform, args.sitelangs, args.zipexe,
+                               args.concurrently)
