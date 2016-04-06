@@ -10,7 +10,7 @@ from odk_tools.language_editions.editions import Editions
 
 class TestEditions(unittest.TestCase):
     # TODO: update tests to use question_images so *.png files aren't in git.
-    # Interim fix: exclude .png from MANFEST.in.
+    # Interim fix: exclude .png from MANIFEST.in.
 
     def setUp(self):
         self.xform1 = 'Q1309_BEHAVE.xml'
@@ -18,6 +18,7 @@ class TestEditions(unittest.TestCase):
         self.xform2 = 'R1309_BEHAVE.xml'
         self.document2 = etree.parse(self.xform2)
         self.languages = 'site_languages.xlsx'
+        self.languages_spaces = 'site_languages_spaces.xlsx'
         self.z7zip_path = 'C:/Program Files/7-Zip/7z.exe'
 
     def test_map_xf_to_none_namespace(self):
@@ -77,6 +78,14 @@ class TestEditions(unittest.TestCase):
         parsed = Editions._read_site_languages(langs)
         self.assertEqual(parsed['61212'], ['english'])
         self.assertEqual(parsed['11101'], ['english', 'spanish'])
+
+    def test_read_site_language_list_spaces(self):
+        """Should trim whitespace from the language list, if any."""
+        langs = self.languages
+        lang_spaces = self.languages_spaces
+        langs_parsed = Editions._read_site_languages(langs)
+        langs_spaces_parsed = Editions._read_site_languages(lang_spaces)
+        self.assertEqual(langs_parsed, langs_spaces_parsed)
 
     def test_create_output_directory(self):
         """Should create a directory tree."""

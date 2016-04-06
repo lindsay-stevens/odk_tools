@@ -93,7 +93,7 @@ class Editions(object):
         sheet = workbook.sheet_by_index(0)
         site_settings = dict()
         for row in sheet._cell_values[1:]:
-            language_list = row[0].lower().split('/')
+            language_list = [x.strip() for x in row[0].lower().split('/')]
             site_code = str(int(row[2]))
             site_settings[site_code] = language_list
         return site_settings
