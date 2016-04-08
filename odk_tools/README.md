@@ -6,9 +6,14 @@ sections:
 - conversion_to_docx
 
 The scripts for question images and language editions are compatible with
-pyinstaller, for easy distribution to other users. Ideally this project will
-incorporate the XLS2XForm library so the complete workflow from design to
-deployment is included.
+`pyinstaller script.py --onefile`, for easy distribution to other users.
+
+Ideally this project will incorporate the XLS2XForm library so the complete
+workflow from design to deployment is included, for example:
+- xls2xform: convert XLSX form design spreadsheet to xform XML.
+- question_images: generate question images from XLSX form design.
+- language_editions: prepare site-specific language editions as zip files, from
+  the xform XML, question images, and a list of sites and languages.
 
 ## Question Images
 Purpose:
@@ -24,14 +29,15 @@ XLSForm to generate images containing question and hint text. An example of
 this is in the test folder for language_editions (TODO: proper spec).
 
 Usage:
+The standard '-h' flag will show parameter information and usage.
 ```shell
-images.py -f XFORM.xlsx
+images.py XFORM_NAME.xlsx
 ```
 
 Output:
 
-A folder named 'XFORM-media' (name matching the input file), created in the
-same directory as the input xform file.
+A folder named 'XFORM_NAME-media' (name matching the input file), created in
+the same directory as the input xform file.
 
 
 ## Language Editions
@@ -50,7 +56,7 @@ archived in .zip files.
 
 Additionally, the script will attempt to append the site code to a xform item
 named 'SID', which is assumed to be the subject ID. This is so that the default
-value is, for example, '1309-61202', instead of just '1309-'.
+value is, for example, '1309-61202-', instead of just '1309-'.
 
 
 Function:
@@ -60,8 +66,9 @@ which sites require which languages, and the path to a 7zip executable. An
 example of this is in the test folder for language_editions (TODO: proper spec).
 
 Usage:
+The standard '-h' flag will show parameter information and usage.
 ```shell
-editions.py --xform=XFORM.xml --sitelangs=site_langs.xlsx --zipexe="C:\Program Files\7-Zip\7z.exe"
+editions.py XFORM.xml site_langs.xlsx
 ```
 
 Output:
@@ -74,5 +81,6 @@ and itext images.
 ## Conversion to docx
 Purpose:
 
-An work in progress / experiment that is intended to generate a printable
-document version of a XLSForm.
+An work in progress / experiment that is intended to generate a MS Word / docx
+document version of a XLSForm. The document could be used as a printable paper
+backup copy of the questionnaire, in case the tablet is lost or unavailable.
