@@ -266,20 +266,21 @@ if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--xform", dest='xform',
+        "xform", dest='xform',
         help="Path to xform xml file to split by language.")
     parser.add_argument(
-        "--sitelangs", dest='sitelangs',
+        "sitelangs", dest='sitelangs',
         help="Path to xlsx file with sites and languages specified.")
     parser.add_argument(
         "--zipexe", dest='zipexe',
-        help="Path to 7zip executable.")
+        help="Path to 7zip executable, if not C:\\Program Files\\7-Zip\\7z.exe")
     parser.add_argument(
         "--concurrently", dest='concurrently', action='store_true',
         help="Run the zip jobs concurrently (up to 4 at a time), instead of"
              "sequentially. If running from a pyinstaller single exe, "
              "only sequential mode can work.")
-    parser.set_defaults(concurrently=False)
+    parser.set_defaults(concurrently=False,
+                        zipexe="C:\\Program Files\\7-Zip\\7z.exe")
     args = parser.parse_args()
     Editions.language_editions(args.xform, args.sitelangs, args.zipexe,
                                args.concurrently)
