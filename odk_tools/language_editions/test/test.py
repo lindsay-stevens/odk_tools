@@ -20,6 +20,11 @@ class TestEditions(unittest.TestCase):
         self.languages = 'site_languages.xlsx'
         self.languages_spaces = 'site_languages_spaces.xlsx'
         self.z7zip_path = 'C:/Program Files/7-Zip/7z.exe'
+        self.test_output_path = None
+
+    def tearDown(self):
+        if self.test_output_path is not None:
+            shutil.rmtree(self.test_output_path, ignore_errors=True)
 
     def test_map_xf_to_none_namespace(self):
         ns = Editions._map_xf_to_xform_namespace(self.document1)
@@ -128,21 +133,17 @@ class TestEditions(unittest.TestCase):
     def test_prepare_zip_job(self):
         """Should result in a zip command."""
         observed = Editions._prepare_zip_job('7zip', 'source', 'form', 'site')
-        expected = '7zip a -tzip -mx9 -sdel form-site.zip "source/form*"'
+        expected = '7zip a -tzip -mx9 -sdel "form-site.zip" "source/form*"'
         self.assertEqual(expected, observed)
 
-    def test_execute_zip_jobs(self):
-        """Should result in a zip file named by site, with expected images."""
+    def test_execute_zip_jobs_produces_site_zip(self):
+        """Should result in a zip file named by site."""
         curdir = os.path.dirname(__file__)
         parent_path = os.path.join(curdir, 'editions_zip')
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '61202'
         form_name = 'Q1309_BEHAVE'
-        source_media_folder = 'Q1309_BEHAVE-media'
         langs = ['english', 'norwegian', 'german']
-        find_images = [glob.glob('{0}/*_{1}.png'.format(
-            source_media_folder, x)) for x in langs]
-        images_count = len(tuple(itertools.chain.from_iterable(find_images)))
 
         site_path = Editions._prepare_site_files(
             parent_path, self.xform1, site_code, langs)
@@ -154,14 +155,61 @@ class TestEditions(unittest.TestCase):
         expected_files = '{0}-{1}.zip'.format(form_name, site_code)
         self.assertEqual([expected_files], observed_files)
 
-        zip_path = os.path.join(parent_path, expected_files)
-        zip_out = zipfile.ZipFile(zip_path)
-        zip_item_count = len(zip_out.infolist())
-        zip_out.close()
-        # 2 extras: media directory, and the xform file.
-        self.assertEqual(images_count + 2, zip_item_count)
+        shutil.rmtree(parent_path, ignore_errors=True)
+
+    def test_execute_zip_jobs_output_path_with_spaces(self):
+        """Should result in a zip file, even if output path has a space."""
+        curdir = os.path.dirname(__file__)
+        parent_path = os.path.join(curdir, 'editions space')
+        shutil.rmtree(parent_path, ignore_errors=True)
+        site_code = '61202'
+        form_name = 'Q1309_BEHAVE'
+        langs = ['english']
+
+        site_path = Editions._prepare_site_files(
+            parent_path, self.xform1, site_code, langs)
+        job = Editions._prepare_zip_job(
+            self.z7zip_path, site_path, form_name, site_code)
+        Editions._execute_zip_jobs([job])
+
+        observed_files = [x for x in os.listdir(parent_path) if x.endswith('.zip')]
+        expected_files = '{0}-{1}.zip'.format(form_name, site_code)
+        self.assertEqual([expected_files], observed_files)
 
         shutil.rmtree(parent_path, ignore_errors=True)
+
+    def test_execute_zip_jobs_zip_contents_correct(self):
+        """Should result in a zip file contains expected images & paths."""
+        curdir = os.path.dirname(__file__)
+        parent_path = os.path.join(curdir, 'editions_zip')
+        shutil.rmtree(parent_path, ignore_errors=True)
+        self.test_output_path = parent_path
+        site_code = '61202'
+        form_name = 'Q1309_BEHAVE'
+        expected_zip = '{0}-{1}.zip'.format(form_name, site_code)
+        source_media_folder = 'Q1309_BEHAVE-media'
+        langs = ['english']
+        find_images = [glob.glob('{0}/*_{1}.png'.format(
+            source_media_folder, x)) for x in langs]
+        images_found = list(itertools.chain.from_iterable(find_images))
+
+        site_path = Editions._prepare_site_files(
+            parent_path, self.xform1, site_code, langs)
+        job = Editions._prepare_zip_job(
+            self.z7zip_path, site_path, form_name, site_code)
+        Editions._execute_zip_jobs([job])
+
+        zip_path = os.path.join(parent_path, expected_zip)
+        zip_out = zipfile.ZipFile(zip_path)
+        zip_items = zip_out.infolist()
+        zip_out.close()
+
+        non_image_contents = [source_media_folder, '{0}.xml'.format(form_name)]
+        expected_contents = non_image_contents + images_found
+        self.assertEqual(
+            sorted([os.path.realpath(x) for x in expected_contents]),
+            sorted([os.path.realpath(x.filename) for x in zip_items])
+        )
 
     def test_clean_up_site_dirs(self):
         """Should remove all empty site dirs."""
