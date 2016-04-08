@@ -238,7 +238,9 @@ def read_xlsform(output_path, filepath):
 if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--filepath", help="path to xls form file")
+    parser.add_argument(
+        "filepath",
+        help="Path to XLSForm file.")
     args = parser.parse_args()
     out_folder = '{0}-media'.format(
         os.path.splitext(os.path.basename(args.filepath))[0])
