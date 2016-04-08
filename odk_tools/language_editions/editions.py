@@ -266,10 +266,10 @@ if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "xform", dest='xform',
+        "xform",
         help="Path to xform xml file to split by language.")
     parser.add_argument(
-        "sitelangs", dest='sitelangs',
+        "sitelangs",
         help="Path to xlsx file with sites and languages specified.")
     parser.add_argument(
         "--zipexe", dest='zipexe',
