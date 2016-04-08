@@ -1,5 +1,4 @@
 import os
-import errno
 import re
 import argparse
 import textwrap
@@ -235,6 +234,77 @@ def read_xlsform(output_path, filepath):
 
                 write_image(output_path, **image_settings_kwargs)
 
+
+class Images(object):
+
+    @staticmethod
+    def _create_output_directory(xlsform_path):
+        """
+        Create a directory for the output image files next to the xlsform.
+
+        The folder will be named like "INPUT_FILENAME-media' where the provided
+        file path ends in 'INPUT_FILENAME.xlsx'. The directory will be in the same
+        folder as the xlsform.
+
+        If the directory exists already or there is some other problem with
+        creating the directory, the exceptions will be raised / script exits.
+
+        Parameters.
+        :param xlsform_path: str. Path to input XLSX file.
+        :return: str. Path to the output directory that was created.
+        """
+        output_folder = '{0}-media'.format(
+            os.path.splitext(os.path.basename(xlsform_path))[0])
+        output_path = os.path.join(os.path.dirname(xlsform_path), output_folder)
+        os.makedirs(output_path)
+        return output_path
+
+    @staticmethod
+    def _read_image_settings(xlsform_workbook):
+        """
+        Read the image settings from the xlsform workbook.
+
+        The following steps are used:
+        - identify the settings columns (contain '::' in the first row value)
+        - read settings for all settings columns, named using the first column.
+
+        Parameters.
+        :param xlsform_workbook: xlrd workbook. XLSForm workbook object.
+        :return: dict[dict]. Key is column index, value is dict of settings.
+        """
+        sheet = xlsform_workbook.sheet_by_name(sheet_name='image_settings')
+
+        settings = dict()
+        for column_index in range(1, sheet.ncols):
+            heading_value = sheet.cell_value(0, column_index)
+            if not heading_value.find('::') == -1:
+                language = heading_value.split('::')[1]
+                settings[column_index] = {'language': language}
+
+        for k, v in settings.items():
+            for i in range(1, sheet.nrows):
+                name = sheet.cell_value(rowx=i, colx=0)
+                value = sheet.cell_value(rowx=i, colx=k)
+                if name == 'type_ignore_list':
+                    v[name] = [x.strip() for x in value.split(',')]
+                else:
+                    v[name] = value
+
+        return settings
+
+    @staticmethod
+    def _read_survey_values(xlsform_workbook, settings):
+        """
+        Read the survey values for each setting from the xlsform workbook.
+
+        Parameters.
+        :param xlsform_workbook: xlrd workbook. XLSForm workbook object.
+        :param settings: dict. Image settings for each language.
+        :return: dict[dict]. Key is column index, value is dict of settings.
+        """
+        pass
+
+
 if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
@@ -242,14 +312,5 @@ if __name__ == '__main__':
         "filepath",
         help="Path to XLSForm file.")
     args = parser.parse_args()
-    out_folder = '{0}-media'.format(
-        os.path.splitext(os.path.basename(args.filepath))[0])
-    out_path = os.path.join(os.path.dirname(args.filepath), out_folder)
-
-    # make sure the output folder exists and read the xlsform
-    try:
-        os.makedirs(out_path)
-    except OSError as exception:
-        if exception.errno != errno.EEXIST:
-            raise
+    out_path = Images._create_output_directory(xlsform_path=args.filepath)
     read_xlsform(out_path, args.filepath)
