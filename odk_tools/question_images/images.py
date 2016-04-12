@@ -238,6 +238,25 @@ def read_xlsform(output_path, filepath):
 class Images(object):
 
     @staticmethod
+    def _supported_settings():
+        """Return a tuple containing the supported settings for this script."""
+        general_kw = ('language', 'file_name_column', 'type_ignore_list',
+                      'image_width', 'image_height', 'image_color')
+        logo_kw = ('logo_image_path', 'logo_image_pixels_before',
+                   'logo_image_height')
+        label_kw = ('text_label_column', 'text_label_pixels_before',
+                    'text_label_pixels_line', 'text_label_wrap_char',
+                    'text_label_font_name', 'text_label_font_size',
+                    'text_label_font_color')
+        hint_kw = ('text_hint_column', 'text_hint_pixels_before',
+                   'text_hint_pixels_line', 'text_hint_wrap_char',
+                   'text_hint_font_name', 'text_hint_font_size',
+                   'text_hint_font_color')
+        nest_image_kw = ('nest_image_column', 'nest_image_pixels_before')
+        all_kw = general_kw + logo_kw + label_kw + hint_kw + nest_image_kw
+        return all_kw
+
+    @staticmethod
     def _create_output_directory(xlsform_path):
         """
         Create a directory for the output image files next to the xlsform.
@@ -260,49 +279,150 @@ class Images(object):
         return output_path
 
     @staticmethod
+    def _csv_to_list(csv):
+        """
+        Convert a comma separated list of values to items of a list object.
+
+        Parameters.
+        :param csv: str. Comma separated values to split.
+        :return: list. Object with each value as an item.
+        """
+        return [x.strip() for x in csv.split(',')]
+
+    @staticmethod
     def _read_image_settings(xlsform_workbook):
         """
-        Read the image settings from the xlsform workbook.
-
-        The following steps are used:
-        - identify the settings columns (contain '::' in the first row value)
-        - read settings for all settings columns, named using the first column.
+        Read image settings for each language from the xlsform workbook.
 
         Parameters.
         :param xlsform_workbook: xlrd workbook. XLSForm workbook object.
         :return: dict[dict]. Key is column index, value is dict of settings.
         """
         sheet = xlsform_workbook.sheet_by_name(sheet_name='image_settings')
+        all_settings = Images._locate_language_settings_columns(
+            image_settings_sheet=sheet)
+        for column_index, settings in all_settings.items():
+            settings.update(Images._read_language_settings_values(
+                image_settings_sheet=sheet, column_index=column_index,
+                settings=settings))
+            settings['type_ignore_list'] = Images._csv_to_list(
+                settings['type_ignore_list'])
+        return all_settings
 
+    @staticmethod
+    def _locate_language_settings_columns(image_settings_sheet):
+        """
+        Locate the column position and name of languages with image settings.
+
+        Parameters.
+        :param image_settings_sheet: xlrd sheet. Image settings worksheet.
+        :return: dict. Column position and name of language settings.
+        """
         settings = dict()
-        for column_index in range(1, sheet.ncols):
-            heading_value = sheet.cell_value(0, column_index)
+        for column_index in range(1, image_settings_sheet.ncols):
+            heading_value = image_settings_sheet.cell_value(0, column_index)
             if not heading_value.find('::') == -1:
                 language = heading_value.split('::')[1]
                 settings[column_index] = {'language': language}
-
-        for k, v in settings.items():
-            for i in range(1, sheet.nrows):
-                name = sheet.cell_value(rowx=i, colx=0)
-                value = sheet.cell_value(rowx=i, colx=k)
-                if name == 'type_ignore_list':
-                    v[name] = [x.strip() for x in value.split(',')]
-                else:
-                    v[name] = value
-
         return settings
 
     @staticmethod
-    def _read_survey_values(xlsform_workbook, settings):
+    def _read_language_settings_values(
+            image_settings_sheet, column_index, settings):
         """
-        Read the survey values for each setting from the xlsform workbook.
+        Read the image settings for each language in the image_settings sheet.
+
+        Parameters.
+        :param image_settings_sheet: xlrd sheet. Image settings worksheet.
+        :return: dict. Image settings for a language.
+        """
+        valid_names = Images._supported_settings()
+        for i in range(1, image_settings_sheet.nrows):
+            name = image_settings_sheet.cell_value(rowx=i, colx=0)
+            value = image_settings_sheet.cell_value(rowx=i, colx=column_index)
+            if name in valid_names:
+                settings[name] = value
+        return settings
+
+    @staticmethod
+    def _read_survey_image_content(xlsform_workbook, settings):
+        """
+        Read image content values for each language from the xlsform workbook.
+
+        The following steps are used:
+        - identify the content columns specified in the language settings.
+        - read item content values for all settings columns.
 
         Parameters.
         :param xlsform_workbook: xlrd workbook. XLSForm workbook object.
-        :param settings: dict. Image settings for each language.
+        :param settings: dict. Image settings for a language.
         :return: dict[dict]. Key is column index, value is dict of settings.
         """
-        pass
+        sheet = xlsform_workbook.sheet_by_name(sheet_name='survey')
+        column_locations = Images._locate_image_content_columns(
+            survey_sheet=sheet, settings_values=settings)
+        raw_image_content = Images._read_survey_image_content_values(
+            survey_sheet=sheet, column_locations=column_locations)
+
+        image_content = list()
+        for i in raw_image_content:
+            if i['file_name_column'] not in settings['type_ignore_list']:
+                i['text_label_column'] = wrap_text(
+                    i['text_label_column'], settings['text_label_wrap_char'])
+                i['text_hint_column'] = wrap_text(
+                    i['text_hint_column'], settings['text_label_wrap_char'])
+                image_content.append(i)
+
+        settings['image_content'] = image_content
+        return settings
+
+    @staticmethod
+    def _locate_image_content_columns(survey_sheet, settings_values):
+        """
+        Locate the column position of image content values.
+
+        Parameters.
+        :param survey_sheet: xlrd sheet. Survey worksheet.
+        :param settings_values: dict. Image settings for a language.
+        :return: dict. Column position and name of image content values.
+        """
+        settings_columns = (
+            'text_label_column', 'text_hint_column', 'nest_image_column')
+        column_locations = dict()
+        content_columns = {settings_values[x]: x for x in settings_columns}
+
+        for column_index in range(0, survey_sheet.ncols):
+            heading_value = survey_sheet.cell_value(0, column_index)
+            if heading_value == settings_values['file_name_column']:
+                column_locations['file_name_column'] = column_index
+            if not heading_value.find('#') == -1:
+                heading_split = heading_value.split('#')
+                column_name = heading_split[0]
+                language_name = heading_split[1]
+                if language_name == settings_values['language']:
+                    column_lookup = content_columns.get(column_name)
+                    if column_lookup is not None:
+                        column_locations[column_lookup] = column_index
+
+        return column_locations
+
+    @staticmethod
+    def _read_survey_image_content_values(survey_sheet, column_locations):
+        """
+        Read the image content in the specified locations from the survey sheet.
+
+        Parameters.
+        :param survey_sheet: xlrd sheet. Survey worksheet.
+        :param column_locations: dict. Column locations of image content.
+        :return: list. Image content values.
+        """
+        all_image_content = list()
+        for row_index in range(1, survey_sheet.nrows):
+            content = dict()
+            for n, i in column_locations.items():
+                content[n] = survey_sheet.cell_value(rowx=row_index, colx=i)
+            all_image_content.append(content)
+        return all_image_content
 
 
 if __name__ == '__main__':

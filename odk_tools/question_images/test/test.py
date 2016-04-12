@@ -33,23 +33,77 @@ class TestImages(TestCase):
         self.images._create_output_directory(self.xlsform1)
         self.assertTrue(os.path.isdir(self.test_output_path))
 
-    def test_read_image_settings_parses_csv(self):
+    def test_csv_to_list(self):
         """Should parse the csv into a trimmed value list."""
         csv = 'start,end,  deviceid, begin group,end group  '
         expected = ['start', 'end', 'deviceid', 'begin group', 'end group']
-        settings = self.images._read_image_settings(self.xlsform1_workbook)
-        observed = settings[2]['type_ignore_list']
+        observed = self.images._csv_to_list(csv)
+        self.assertEqual(expected, observed)
+
+    def test_locate_language_settings_columns(self):
+        """Should return the column position and name of language settings."""
+        expected = {2: {'language': 'english'}}
+        sheet = self.xlsform1_workbook.sheet_by_name(
+            sheet_name='image_settings')
+        observed = self.images._locate_language_settings_columns(
+            image_settings_sheet=sheet)
+        self.assertEqual(expected, observed)
+
+    def test_read_language_settings_values(self):
+        """Should return a dict with a key for all supported settings."""
+        sheet = self.xlsform1_workbook.sheet_by_name(
+            sheet_name='image_settings')
+        settings = self.images._read_language_settings_values(
+            image_settings_sheet=sheet, column_index=2, settings=dict())
+        expected = set(self.images._supported_settings())
+        observed = set(settings.keys()) | {'language'}
         self.assertEqual(expected, observed)
 
     def test_read_image_settings(self):
-        """Should return the expected quantity of and sample values."""
+        """Should return expected sample settings values."""
         settings = self.images._read_image_settings(self.xlsform1_workbook)
         observed = settings.get(2)
-        self.assertIsNotNone(observed)
         self.assertEqual(observed['language'], 'english')
         self.assertEqual(observed['text_label_font_name'], 'arialbd.ttf')
-        self.assertEqual(26, len(observed.keys()))
 
-    def test_read_survey_values(self):
-        """Should return the expected quantity of and sample values."""
-        pass
+    def test_locate_image_content_columns(self):
+        """Should return the column index of the image content columns."""
+        expected = {'file_name_column': 1,
+                    'text_label_column': 2,
+                    'text_hint_column': 3,
+                    'nest_image_column': 4}
+        settings = {2: {'language': 'english',
+                        'file_name_column': 'name',
+                        'text_label_column': 'label',
+                        'text_hint_column': 'hint',
+                        'nest_image_column': 'image'}}
+        sheet = self.xlsform1_workbook.sheet_by_name(sheet_name='survey')
+        observed = self.images._locate_image_content_columns(
+            survey_sheet=sheet, settings_values=settings[2])
+        self.assertEqual(expected, observed)
+
+    def test_read_survey_image_content_values(self):
+        """Should return content values with expected keys."""
+        expected = {'file_name_column', 'text_label_column',
+                    'text_hint_column', 'nest_image_column'}
+        settings = {2: {'language': 'english',
+                        'file_name_column': 'name',
+                        'text_label_column': 'label',
+                        'text_hint_column': 'hint',
+                        'nest_image_column': 'image'}}
+        sheet = self.xlsform1_workbook.sheet_by_name(sheet_name='survey')
+        column_locations = self.images._locate_image_content_columns(
+            survey_sheet=sheet, settings_values=settings[2])
+        observed = self.images._read_survey_image_content_values(
+            survey_sheet=sheet, column_locations=column_locations)
+        self.assertEqual(expected, set(observed[0].keys()))
+
+    def test_read_survey_image_content(self):
+        """Should return expected sample image content values."""
+        settings = self.images._read_image_settings(
+            xlsform_workbook=self.xlsform1_workbook)
+        observed = self.images._read_survey_image_content(
+            xlsform_workbook=self.xlsform1_workbook, settings=settings[2])
+        image_content = observed['image_content']
+        self.assertEqual('visit', image_content[0]['file_name_column'])
+        self.assertEqual(['Subject ID'], image_content[3]['text_label_column'])
