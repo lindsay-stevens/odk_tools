@@ -5,7 +5,9 @@ import textwrap
 from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
+import PIL as pillow
 from xlrd import open_workbook
+from itertools import chain
 
 """
 Creates image files with xlsform question text.
@@ -238,23 +240,61 @@ def read_xlsform(output_path, filepath):
 class Images(object):
 
     @staticmethod
-    def _supported_settings():
-        """Return a tuple containing the supported settings for this script."""
-        general_kw = ('language', 'file_name_column', 'type_ignore_list',
-                      'image_width', 'image_height', 'image_color')
-        logo_kw = ('logo_image_path', 'logo_image_pixels_before',
-                   'logo_image_height')
-        label_kw = ('text_label_column', 'text_label_pixels_before',
-                    'text_label_pixels_line', 'text_label_wrap_char',
-                    'text_label_font_name', 'text_label_font_size',
-                    'text_label_font_color')
-        hint_kw = ('text_hint_column', 'text_hint_pixels_before',
-                   'text_hint_pixels_line', 'text_hint_wrap_char',
-                   'text_hint_font_name', 'text_hint_font_size',
-                   'text_hint_font_color')
-        nest_image_kw = ('nest_image_column', 'nest_image_pixels_before')
-        all_kw = general_kw + logo_kw + label_kw + hint_kw + nest_image_kw
-        return all_kw
+    def write(xlsform_path, settings):
+        """WIP: This should tie together all the image writing methods"""
+        output_path = Images._create_output_directory(xlsform_path)
+        base_image, base_vertical = Images._create_base_image(
+            width=settings['image_width'],
+            height=settings['image_height'],
+            color=settings['image_color'])
+        if len(settings['logo_image_path']) > 0:
+            logo = pillow.Image.open(settings['logo_image_path'])
+            base_image, base_vertical = Images._paste_image(
+                base_image=base_image, pixels_from_top=base_vertical,
+                paste_image=logo,
+                pixels_before=settings['logo_image_pixels_before'],
+                max_height=settings['logo_image_height'])
+
+        label_font = pillow.ImageFont.truetype(
+            font=settings['text_label_font_name'],
+            size=settings['text_label_font_size'])
+        label_font_color = settings['text_label_font_color']
+        hint_font = pillow.ImageFont.truetype(
+            font=settings['text_hint_font_name'],
+            size=settings['text_hint_font_size'])
+        hint_font_color = settings['text_hint_font_color']
+
+        for question in settings['image_content'][0:3]:
+            vertical = base_vertical
+            question_image = base_image.copy()
+            drawer = pillow.ImageDraw.Draw(question_image)
+            if len(question['text_label_column']) > 0:
+                question_image, vertical = Images._draw_text(
+                    base_image=question_image,
+                    drawer=drawer, pixels_from_top=vertical,
+                    pixels_before=settings['text_label_pixels_before'],
+                    pixels_between=settings['text_label_pixels_line'],
+                    font=label_font, font_color=label_font_color,
+                    text=question['text_label_column'])
+            if len(question['text_hint_column']) > 0:
+                question_image, vertical = Images._draw_text(
+                    base_image=question_image,
+                    drawer=drawer, pixels_from_top=vertical,
+                    pixels_before=settings['text_hint_pixels_before'],
+                    pixels_between=settings['text_hint_pixels_line'],
+                    font=hint_font, font_color=hint_font_color,
+                    text=question['text_hint_column'])
+            if len(question['nest_image_column']) > 0:
+                nest = pillow.Image.open(question['nest_image_column'])
+                question_image, vertical = Images._paste_image(
+                    base_image=question_image, pixels_from_top=vertical,
+                    paste_image=nest,
+                    pixels_before=settings['logo_image_pixels_before'],
+                    max_height=settings['logo_image_height'])
+            item_filename_ext = os.path.join(
+                output_path, '{0}_{1}.png'.format(
+                    question['file_name_column'], settings['language']))
+            question_image.save(item_filename_ext, 'PNG', dpi=[300, 300])
 
     @staticmethod
     def _create_output_directory(xlsform_path):
@@ -275,8 +315,83 @@ class Images(object):
         output_folder = '{0}-media'.format(
             os.path.splitext(os.path.basename(xlsform_path))[0])
         output_path = os.path.join(os.path.dirname(xlsform_path), output_folder)
-        os.makedirs(output_path)
+        os.makedirs(output_path, exist_ok=True)
         return output_path
+
+    @staticmethod
+    def _create_base_image(width, height, color):
+        """
+        Create a base image for drawing content onto.
+
+        Parameters.
+        :param width: int. Image width.
+        :param height: int. Image height.
+        :param color: str. HTML common name of the image color.
+        :returns image: PIL.Image. Object for adding existing content.
+        :returns drawer: PIL.ImageDraw. Object for creating new content.
+        :returns pixels_from_top: int. Consumed vertical space.
+        """
+        image = pillow.Image.new('RGB', (int(width), int(height)), color)
+        pixels_from_top = 0
+        return image, pixels_from_top
+
+    @staticmethod
+    def _paste_image(base_image, pixels_from_top, paste_image,
+                     pixels_before, max_height=None):
+        paste_image_copy = paste_image.copy()
+        base_image_x, base_image_y = base_image.size
+        paste_image_x, paste_image_y = paste_image.size
+        paste_position_y = pixels_from_top + pixels_before
+        if max_height is None:
+            max_height = base_image_y - paste_position_y - 10
+        resize_x = base_image_x - 10
+        resize_y = max_height
+        paste_image_copy.thumbnail((resize_x, resize_y))
+        resized_x, resized_y = paste_image_copy.size
+        paste_position_x = int((base_image_x - resized_x) / 2)
+        base_image.paste(paste_image_copy, (paste_position_x, paste_position_y))
+        pixels_from_top += paste_position_y + paste_image_y
+        return base_image, pixels_from_top
+
+    @staticmethod
+    def _draw_text(base_image, drawer, pixels_from_top, pixels_before,
+                   pixels_between, font, font_color, text):
+        pixels_from_top += pixels_before
+        for line in text:
+            text_x, text_y = drawer.textsize(line, font=font)
+            base_image_x, base_image_y = base_image.size
+            text_position_x = int((base_image_x - text_x) / 2)
+            text_position_y = pixels_from_top
+            drawer.text((text_position_x, text_position_y), line, font=font,
+                        fill=font_color)
+            pixels_from_top += text_y + pixels_between
+            if text_x > base_image_x:
+                print('image is too wide :(')
+
+        return base_image, pixels_from_top
+
+
+class ImageSettings:
+
+    @staticmethod
+    def read(xlsform_workbook):
+        """
+        Read image settings for each language from the xlsform workbook.
+
+        Parameters.
+        :param xlsform_workbook: xlrd workbook. XLSForm workbook object.
+        :return: dict[dict]. Key is column index, value is dict of settings.
+        """
+        sheet = xlsform_workbook.sheet_by_name(sheet_name='image_settings')
+        all_settings = ImageSettings._locate_language_settings_columns(
+            image_settings_sheet=sheet)
+        for column_index, settings in all_settings.items():
+            settings.update(ImageSettings._read_language_settings_values(
+                image_settings_sheet=sheet, column_index=column_index,
+                settings=settings))
+            settings['type_ignore_list'] = ImageSettings._csv_to_list(
+                settings['type_ignore_list'])
+        return all_settings
 
     @staticmethod
     def _csv_to_list(csv):
@@ -288,26 +403,6 @@ class Images(object):
         :return: list. Object with each value as an item.
         """
         return [x.strip() for x in csv.split(',')]
-
-    @staticmethod
-    def _read_image_settings(xlsform_workbook):
-        """
-        Read image settings for each language from the xlsform workbook.
-
-        Parameters.
-        :param xlsform_workbook: xlrd workbook. XLSForm workbook object.
-        :return: dict[dict]. Key is column index, value is dict of settings.
-        """
-        sheet = xlsform_workbook.sheet_by_name(sheet_name='image_settings')
-        all_settings = Images._locate_language_settings_columns(
-            image_settings_sheet=sheet)
-        for column_index, settings in all_settings.items():
-            settings.update(Images._read_language_settings_values(
-                image_settings_sheet=sheet, column_index=column_index,
-                settings=settings))
-            settings['type_ignore_list'] = Images._csv_to_list(
-                settings['type_ignore_list'])
-        return all_settings
 
     @staticmethod
     def _locate_language_settings_columns(image_settings_sheet):
@@ -332,20 +427,46 @@ class Images(object):
         """
         Read the image settings for each language in the image_settings sheet.
 
+        Only supported settings are included, and the values are explicitly
+        cast to the expected type.
+
         Parameters.
         :param image_settings_sheet: xlrd sheet. Image settings worksheet.
         :return: dict. Image settings for a language.
         """
-        valid_names = Images._supported_settings()
+        valid_names = ImageSettings._supported_settings()
         for i in range(1, image_settings_sheet.nrows):
             name = image_settings_sheet.cell_value(rowx=i, colx=0)
             value = image_settings_sheet.cell_value(rowx=i, colx=column_index)
-            if name in valid_names:
-                settings[name] = value
+            if name in valid_names.keys():
+                settings[name] = valid_names[name](value)
         return settings
 
     @staticmethod
-    def _read_survey_image_content(xlsform_workbook, settings):
+    def _supported_settings():
+        """A dictionary of supported image setting names and their types."""
+        general = {'language': str, 'file_name_column': str,
+                   'type_ignore_list': str, 'image_width': int,
+                   'image_height': int, 'image_color': str}
+        logo = {'logo_image_path': str, 'logo_image_pixels_before': int,
+                'logo_image_height': int}
+        label = {'text_label_column': str, 'text_label_pixels_before': int,
+                 'text_label_pixels_line': int, 'text_label_wrap_char': int,
+                 'text_label_font_name': str, 'text_label_font_size': int,
+                 'text_label_font_color': str}
+        hint = {'text_hint_column': str, 'text_hint_pixels_before': int,
+                'text_hint_pixels_line': int, 'text_hint_wrap_char': int,
+                'text_hint_font_name': str, 'text_hint_font_size': int,
+                'text_hint_font_color': str}
+        nest_image = {'nest_image_column': str, 'nest_image_pixels_before': int}
+        all_kw = {**general, **logo, **label, **hint, **nest_image}
+        return all_kw
+
+
+class ImageContent:
+
+    @staticmethod
+    def read(xlsform_workbook, settings):
         """
         Read image content values for each language from the xlsform workbook.
 
@@ -359,17 +480,17 @@ class Images(object):
         :return: dict[dict]. Key is column index, value is dict of settings.
         """
         sheet = xlsform_workbook.sheet_by_name(sheet_name='survey')
-        column_locations = Images._locate_image_content_columns(
+        column_locations = ImageContent._locate_image_content_columns(
             survey_sheet=sheet, settings_values=settings)
-        raw_image_content = Images._read_survey_image_content_values(
+        raw_image_content = ImageContent._read_survey_image_content_values(
             survey_sheet=sheet, column_locations=column_locations)
 
         image_content = list()
         for i in raw_image_content:
             if i['file_name_column'] not in settings['type_ignore_list']:
-                i['text_label_column'] = wrap_text(
+                i['text_label_column'] = ImageContent._wrap_text(
                     i['text_label_column'], settings['text_label_wrap_char'])
-                i['text_hint_column'] = wrap_text(
+                i['text_hint_column'] = ImageContent._wrap_text(
                     i['text_hint_column'], settings['text_label_wrap_char'])
                 image_content.append(i)
 
@@ -423,6 +544,35 @@ class Images(object):
                 content[n] = survey_sheet.cell_value(rowx=row_index, colx=i)
             all_image_content.append(content)
         return all_image_content
+
+    @staticmethod
+    def _wrap_text(text, wrap_characters):
+        """
+        Break text into a list based on punctuation (.?!) then wrap_characters.
+
+        It's assumed that (.?!) mark sentence endings. When these are found,
+        an extra newline is inserted to improved readability. Sentences are
+        split if their length is greater than wrap_characters. Trailing and
+        leading spaces are removed from sentence fragments.
+
+        Parameters.
+        :param text: str. Text to be wrapped.
+        :param wrap_characters: int. Maximum sentence characters per line.
+        :return: list. Text broken into sentence fragments.
+        """
+        punctuation_split = re.split('([^.?!]+[.?!])', text)
+        non_empty_sentence = [i for i in punctuation_split if i != '']
+        sentence_count = len(non_empty_sentence)
+        paragraphs = []
+        for i, sentence in enumerate(non_empty_sentence):
+            sentence_fragments = textwrap.wrap(
+                sentence, width=wrap_characters, break_on_hyphens=False)
+            stripped_fragments = [f.strip() for f in sentence_fragments]
+            paragraphs.append(stripped_fragments)
+            if i < sentence_count - 1:
+                paragraphs.append([' '])
+        flatten_paragraphs = list(chain.from_iterable(paragraphs))
+        return flatten_paragraphs
 
 
 if __name__ == '__main__':
