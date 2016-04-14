@@ -289,8 +289,8 @@ class Images(object):
                 question_image, vertical = Images._paste_image(
                     base_image=question_image, pixels_from_top=vertical,
                     paste_image=nest,
-                    pixels_before=settings['logo_image_pixels_before'],
-                    max_height=settings['logo_image_height'])
+                    pixels_before=settings['nest_image_pixels_before'],
+                    max_height=None)
             item_filename_ext = os.path.join(
                 output_path, '{0}_{1}.png'.format(
                     question['file_name_column'], settings['language']))
@@ -321,7 +321,7 @@ class Images(object):
     @staticmethod
     def _create_base_image(width, height, color):
         """
-        Create a base image for drawing content onto.
+        Create a base image for drawing or pasting content onto.
 
         Parameters.
         :param width: int. Image width.
@@ -337,20 +337,39 @@ class Images(object):
 
     @staticmethod
     def _paste_image(base_image, pixels_from_top, paste_image,
-                     pixels_before, max_height=None):
-        paste_image_copy = paste_image.copy()
+                     pixels_before, max_height=None, image_margin=10):
+        """
+        Paste an image onto another, resizing if to fit if needed or requested.
+
+        Parameters.
+        :param base_image: PIL.Image. Image to paste onto.
+        :param pixels_from_top: int. Current pixel vertical offset.
+        :param paste_image: PIL.Image. Image to paste.
+        :param pixels_before: int. Pixel spacing from previous element.
+        :param max_height: int. Max pixel height for resizing paste_image.
+        :param image_margin: int. Pixel width of border to reserve.
+        :return: PIL.Image (modified base_image), int (new vertical offset).
+        """
+        pixels_from_top += pixels_before
         base_image_x, base_image_y = base_image.size
+
+        paste_image_copy = paste_image.copy()
         paste_image_x, paste_image_y = paste_image.size
-        paste_position_y = pixels_from_top + pixels_before
+
         if max_height is None:
-            max_height = base_image_y - paste_position_y - 10
-        resize_x = base_image_x - 10
-        resize_y = max_height
+            max_height = base_image_y - pixels_from_top
+        leftover_y = base_image_y - pixels_from_top - max_height
+        if leftover_y < image_margin:
+            max_height -= image_margin
+
+        resize_x = min(base_image_x - image_margin * 2, paste_image_x)
+        resize_y = min(max_height, paste_image_y)
         paste_image_copy.thumbnail((resize_x, resize_y))
         resized_x, resized_y = paste_image_copy.size
+
         paste_position_x = int((base_image_x - resized_x) / 2)
-        base_image.paste(paste_image_copy, (paste_position_x, paste_position_y))
-        pixels_from_top += paste_position_y + paste_image_y
+        base_image.paste(paste_image_copy, (paste_position_x, pixels_from_top))
+        pixels_from_top += resized_y
         return base_image, pixels_from_top
 
     @staticmethod

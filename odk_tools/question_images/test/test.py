@@ -35,6 +35,7 @@ class TestImages(_TestImagesBase):
     def test_create_output_directory(self):
         """Should create a folder with the expected name."""
         self.clean_test_output_folder = True
+        shutil.rmtree(self.test_output_folder, ignore_errors=True)
         self.assertFalse(os.path.isdir(self.test_output_folder))
         Images._create_output_directory(self.xlsform1)
         self.assertTrue(os.path.isdir(self.test_output_folder))
@@ -54,6 +55,96 @@ class TestImages(_TestImagesBase):
             xlsform_workbook=self.xlsform1_workbook, settings=settings[2])
         observed = Images.write(self.xlsform1, add_content)
         print('h')
+
+
+class TestImagesPaste(TestCase):
+
+    def test_paste_image_shrink_tall_to_max_height(self):
+        """Should resize to max_height."""
+        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
+        paste_image, _ = Images._create_base_image(750, 600, 'blue')
+        pixels_before = 5
+        max_height = 40
+        expected = 45
+        base_image, observed = Images._paste_image(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            paste_image=paste_image, pixels_before=pixels_before,
+            max_height=max_height)
+        self.assertEqual(expected, observed)
+
+    def test_paste_image_shrink_tall_to_max_height_with_y_offset(self):
+        """Should resize to max_height."""
+        base_image, _ = Images._create_base_image(500, 500, 'red')
+        pixels_from_top = 100
+        paste_image, _ = Images._create_base_image(750, 600, 'blue')
+        pixels_before = 5
+        max_height = 250
+        expected = 355
+        base_image, observed = Images._paste_image(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            paste_image=paste_image, pixels_before=pixels_before,
+            max_height=max_height)
+        self.assertEqual(expected, observed)
+
+    def test_paste_image_shrink_wide_to_available(self):
+        """Should resize to width."""
+        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
+        paste_image, _ = Images._create_base_image(750, 600, 'blue')
+        pixels_before = 5
+        expected = 389
+        base_image, observed = Images._paste_image(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            paste_image=paste_image, pixels_before=pixels_before,
+            max_height=None)
+        self.assertEqual(expected, observed)
+
+    def test_paste_image_shrink_tall_to_available(self):
+        """Should resize to height."""
+        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
+        paste_image, _ = Images._create_base_image(600, 750, 'blue')
+        pixels_before = 5
+        expected = 490
+        base_image, observed = Images._paste_image(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            paste_image=paste_image, pixels_before=pixels_before,
+            max_height=None)
+        self.assertEqual(expected, observed)
+
+    def test_paste_image_shrink_square_to_available(self):
+        """Should resize to width."""
+        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
+        paste_image, _ = Images._create_base_image(600, 600, 'blue')
+        pixels_before = 5
+        expected = 485
+        base_image, observed = Images._paste_image(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            paste_image=paste_image, pixels_before=pixels_before,
+            max_height=None)
+        self.assertEqual(expected, observed)
+
+    def test_paste_image_shrink_square_to_available_with_y_offset(self):
+        """Should resize to fit available space."""
+        base_image, _ = Images._create_base_image(500, 500, 'red')
+        pixels_from_top = 50
+        paste_image, _ = Images._create_base_image(600, 600, 'blue')
+        pixels_before = 5
+        expected = 490
+        base_image, observed = Images._paste_image(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            paste_image=paste_image, pixels_before=pixels_before,
+            max_height=None)
+        self.assertEqual(expected, observed)
+
+    def test_paste_image_doesnt_alter_input_paste_image(self):
+        """Resizing should be done on a copy, not the original."""
+        base_image, _ = Images._create_base_image(500, 500, 'red')
+        paste_image, _ = Images._create_base_image(600, 600, 'blue')
+        expected = (600, 600)
+        Images._paste_image(
+            base_image=base_image, pixels_from_top=20,
+            paste_image=paste_image, pixels_before=20, max_height=50)
+        observed = paste_image.size
+        self.assertEqual(expected, observed)
 
 
 class TestImageSettings(_TestImagesBase):
