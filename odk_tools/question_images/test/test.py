@@ -2,10 +2,13 @@ import os
 import shutil
 import xlrd
 from unittest import TestCase
-from odk_tools.question_images.images import Images, ImageContent, ImageSettings, read_xlsform
+from odk_tools.question_images.images import Images, ImageContent, \
+    ImageSettings, read_xlsform
+from PIL import Image
 
 
 class _TestImagesBase(TestCase):
+    """Common properties for images module tests."""
 
     @classmethod
     def setUpClass(cls):
@@ -15,7 +18,6 @@ class _TestImagesBase(TestCase):
 
     def setUp(self):
         self.clean_test_output_folder = False
-        self.images = Images()
 
     def tearDown(self):
         if self.clean_test_output_folder:
@@ -23,6 +25,7 @@ class _TestImagesBase(TestCase):
 
 
 class TestImages(_TestImagesBase):
+    """Tests for Images class."""
 
     def test_output_count(self):
         """Should create the expected number of images."""
@@ -40,29 +43,78 @@ class TestImages(_TestImagesBase):
         Images._create_output_directory(self.xlsform1)
         self.assertTrue(os.path.isdir(self.test_output_folder))
 
-    def test_create_base_image(self):
+    def test_create_blank_image(self):
         """Should create an image of the expected size and colour."""
-        observed = Images._create_base_image(50, 10, 'lavender')
-        self.assertEqual((50, 10), observed[0].size)
-        self.assertEqual((230, 230, 250), observed[0].load()[5, 5])
+        observed = Images._create_blank_image(50, 10, 'lavender')
+        self.assertEqual((50, 10), observed.size)
+        lavender_rgb_values = (230, 230, 250)
+        self.assertEqual(lavender_rgb_values, observed.load()[5, 5])
+
+    def test_prepare_base_image_with_logo(self):
+        """Should return a base image with a logo pasted onto it."""
+        settings = {'image_width': 500, 'image_height': 500,
+                    'image_color': 'white',
+                    'logo_image_path': 'nest_images/stopc-logo.png',
+                    'logo_image_pixels_before': 10,
+                    'logo_image_height': 40}
+        observed, _ = Images._prepare_base_image(settings)
+        expected = Image.open('reference_images/base_logo.png')
+        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
+        expected.close()
+
+    def test_prepare_base_image_no_logo(self):
+        """Should return a base image with no logo."""
+        settings = {'image_width': 500, 'image_height': 500,
+                    'image_color': 'white', 'logo_image_path': ''}
+        observed, _ = Images._prepare_base_image(settings)
+        expected = Images._create_blank_image(500, 500, 'white')
+        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
     def test_write(self):
-        """WIP: expand to method tests"""
+        #TODO: expand to method tests
         #self.clean_test_output_folder = True
-        settings = ImageSettings.read(
-            xlsform_workbook=self.xlsform1_workbook)
+        settings = ImageSettings.read(xlsform_workbook=self.xlsform1_workbook)
         add_content = ImageContent.read(
             xlsform_workbook=self.xlsform1_workbook, settings=settings[2])
         observed = Images.write(self.xlsform1, add_content)
         print('h')
 
 
-class TestImagesPaste(TestCase):
+class TestImagesPrepareQuestionImages(_TestImagesBase):
+    """Tests for Images._prepare_question_images()"""
 
-    def test_paste_image_shrink_tall_to_max_height(self):
+    def test_all_content_types(self):
+        """Should return image with label, hint and nested image."""
+        template = ImageSettings.read(xlsform_workbook=self.xlsform1_workbook)
+        settings = ImageContent.read(
+            xlsform_workbook=self.xlsform1_workbook, settings=template[2])
+        settings['image_content'] = [x for x in settings['image_content']
+                                     if x['file_name_column'] == 'da2d10ye']
+        base_image, pixels_from_top = Images._prepare_base_image(
+            settings=settings)
+        observed, _ = list(Images._prepare_question_images(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            settings=settings, output_path=''))[0]
+        expected = Image.open('reference_images/da2d10ye_english.png')
+        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
+
+    def test_label_only(self):
+        """Should return image with label only."""
+        pass  # TODO
+
+    def test_label_and_nested_image(self):
+        """Should return image with label and nested image."""
+        pass  # TODO
+
+
+class TestImagesPasteImage(TestCase):
+    """Tests for Images._paste_image()"""
+
+    def test_shrink_tall_to_max_height(self):
         """Should resize to max_height."""
-        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
-        paste_image, _ = Images._create_base_image(750, 600, 'blue')
+        pixels_from_top = 0
+        base_image = Images._create_blank_image(500, 500, 'red')
+        paste_image = Images._create_blank_image(750, 600, 'blue')
         pixels_before = 5
         max_height = 40
         expected = 45
@@ -72,11 +124,11 @@ class TestImagesPaste(TestCase):
             max_height=max_height)
         self.assertEqual(expected, observed)
 
-    def test_paste_image_shrink_tall_to_max_height_with_y_offset(self):
+    def test_shrink_tall_to_max_height_with_y_offset(self):
         """Should resize to max_height."""
-        base_image, _ = Images._create_base_image(500, 500, 'red')
+        base_image = Images._create_blank_image(500, 500, 'red')
         pixels_from_top = 100
-        paste_image, _ = Images._create_base_image(750, 600, 'blue')
+        paste_image = Images._create_blank_image(750, 600, 'blue')
         pixels_before = 5
         max_height = 250
         expected = 355
@@ -86,10 +138,11 @@ class TestImagesPaste(TestCase):
             max_height=max_height)
         self.assertEqual(expected, observed)
 
-    def test_paste_image_shrink_wide_to_available(self):
+    def test_shrink_wide_to_available(self):
         """Should resize to width."""
-        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
-        paste_image, _ = Images._create_base_image(750, 600, 'blue')
+        pixels_from_top = 0
+        base_image = Images._create_blank_image(500, 500, 'red')
+        paste_image = Images._create_blank_image(750, 600, 'blue')
         pixels_before = 5
         expected = 389
         base_image, observed = Images._paste_image(
@@ -98,10 +151,11 @@ class TestImagesPaste(TestCase):
             max_height=None)
         self.assertEqual(expected, observed)
 
-    def test_paste_image_shrink_tall_to_available(self):
+    def test_shrink_tall_to_available(self):
         """Should resize to height."""
-        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
-        paste_image, _ = Images._create_base_image(600, 750, 'blue')
+        pixels_from_top = 0
+        base_image = Images._create_blank_image(500, 500, 'red')
+        paste_image = Images._create_blank_image(600, 750, 'blue')
         pixels_before = 5
         expected = 490
         base_image, observed = Images._paste_image(
@@ -110,10 +164,11 @@ class TestImagesPaste(TestCase):
             max_height=None)
         self.assertEqual(expected, observed)
 
-    def test_paste_image_shrink_square_to_available(self):
+    def test_shrink_square_to_available(self):
         """Should resize to width."""
-        base_image, pixels_from_top = Images._create_base_image(500, 500, 'red')
-        paste_image, _ = Images._create_base_image(600, 600, 'blue')
+        pixels_from_top = 0
+        base_image = Images._create_blank_image(500, 500, 'red')
+        paste_image = Images._create_blank_image(600, 600, 'blue')
         pixels_before = 5
         expected = 485
         base_image, observed = Images._paste_image(
@@ -122,11 +177,11 @@ class TestImagesPaste(TestCase):
             max_height=None)
         self.assertEqual(expected, observed)
 
-    def test_paste_image_shrink_square_to_available_with_y_offset(self):
+    def test_shrink_square_to_available_with_y_offset(self):
         """Should resize to fit available space."""
-        base_image, _ = Images._create_base_image(500, 500, 'red')
+        base_image = Images._create_blank_image(500, 500, 'red')
         pixels_from_top = 50
-        paste_image, _ = Images._create_base_image(600, 600, 'blue')
+        paste_image = Images._create_blank_image(600, 600, 'blue')
         pixels_before = 5
         expected = 490
         base_image, observed = Images._paste_image(
@@ -135,10 +190,10 @@ class TestImagesPaste(TestCase):
             max_height=None)
         self.assertEqual(expected, observed)
 
-    def test_paste_image_doesnt_alter_input_paste_image(self):
+    def test_doesnt_alter_input_paste_image(self):
         """Resizing should be done on a copy, not the original."""
-        base_image, _ = Images._create_base_image(500, 500, 'red')
-        paste_image, _ = Images._create_base_image(600, 600, 'blue')
+        base_image = Images._create_blank_image(500, 500, 'red')
+        paste_image = Images._create_blank_image(600, 600, 'blue')
         expected = (600, 600)
         Images._paste_image(
             base_image=base_image, pixels_from_top=20,
@@ -147,7 +202,92 @@ class TestImagesPaste(TestCase):
         self.assertEqual(expected, observed)
 
 
+class TestImagesDrawText(_TestImagesBase):
+    """Tests for Images._draw_text()"""
+
+    def test_ideal_input(self):
+        """Should return a modified image with expected offset and no errors."""
+        settings = ImageSettings.read(xlsform_workbook=self.xlsform1_workbook)
+        settings = settings[2]
+        base_image = Images._create_blank_image(
+            settings['image_width'], settings['image_height'],
+            settings['image_color'])
+        original_image = base_image.copy()
+        text = ['This is some text', 'that is for a question']
+        font_kwargs = ImageSettings._get_font_kwargs(
+            settings=settings, label_or_hint='label')
+        drawn_image, vertical, oversize_lines = Images._draw_text(
+            base_image=base_image, pixels_from_top=0, pixels_before=10,
+            pixels_between=5, **font_kwargs, text=text)
+        self.assertNotEqual(list(original_image.getdata()),
+                            list(drawn_image.getdata()))
+        self.assertEqual(79, vertical)
+        self.assertEqual(0, len(oversize_lines))
+
+    def test_line_exceeds_width(self):
+        """Should return an error indicating the line that was too wide."""
+        base_image = Images._create_blank_image(200, 200, 'white')
+        text = ['This is some text that is for a question']
+        settings = {'text_label_font_name': 'arialbd.ttf',
+                    'text_label_font_size': 32,
+                    'text_label_font_color': 'red'}
+        font_kwargs = ImageSettings._get_font_kwargs(
+            settings=settings, label_or_hint='label')
+        _, _, observed = Images._draw_text(
+            base_image=base_image, pixels_from_top=0, pixels_before=10,
+            pixels_between=5, **font_kwargs, text=text)
+        expected = [('width', text[0], 589)]
+        self.assertEqual(expected, observed)
+
+    def test_line_exceeds_height(self):
+        """Should return an error indicating the line that was too tall."""
+        base_image = Images._create_blank_image(200, 100, 'white')
+        text = ['Big', 'Text']
+        settings = {'text_label_font_name': 'arialbd.ttf',
+                    'text_label_font_size': 64,
+                    'text_label_font_color': 'red'}
+        font_kwargs = ImageSettings._get_font_kwargs(
+            settings=settings, label_or_hint='label')
+        _, _, observed = Images._draw_text(
+            base_image=base_image, pixels_from_top=0, pixels_before=10,
+            pixels_between=5, **font_kwargs, text=text)
+        expected = [('height', text[1], 59)]
+        self.assertEqual(expected, observed)
+
+    def test_line_exceeds_width_and_height(self):
+        """Should return an errors indicating the line is too wide and tall."""
+        base_image = Images._create_blank_image(50, 50, 'white')
+        text = ['This is too big']
+        settings = {'text_label_font_name': 'arialbd.ttf',
+                    'text_label_font_size': 64,
+                    'text_label_font_color': 'red'}
+        font_kwargs = ImageSettings._get_font_kwargs(
+            settings=settings, label_or_hint='label')
+        _, _, observed = Images._draw_text(
+            base_image=base_image, pixels_from_top=0, pixels_before=10,
+            pixels_between=5, **font_kwargs, text=text)
+        expected = [('width', text[0], 436), ('height', text[0], 72)]
+        self.assertEqual(expected, observed)
+
+    def test_line_exceeds_width_and_height_multiple(self):
+        """Should return an errors indicating which lines are too big."""
+        base_image = Images._create_blank_image(50, 100, 'white')
+        text = ['This text is too big', 'and so is this']
+        settings = {'text_label_font_name': 'arialbd.ttf',
+                    'text_label_font_size': 64,
+                    'text_label_font_color': 'red'}
+        font_kwargs = ImageSettings._get_font_kwargs(
+            settings=settings, label_or_hint='label')
+        _, _, observed = Images._draw_text(
+            base_image=base_image, pixels_from_top=0, pixels_before=10,
+            pixels_between=5, **font_kwargs, text=text)
+        expected = [('width', text[0], 568),
+                    ('width', text[1], 411), ('height', text[1], 59)]
+        self.assertEqual(expected, observed)
+
+
 class TestImageSettings(_TestImagesBase):
+    """Tests for ImageSettings class."""
 
     def test_csv_to_list(self):
         """Should parse the csv into a trimmed value list."""
@@ -184,8 +324,37 @@ class TestImageSettings(_TestImagesBase):
         self.assertIsInstance(observed['text_hint_pixels_line'], int)
         self.assertIsInstance(observed['nest_image_column'], str)
 
+    def test_get_font_kwargs_label(self):
+        """Should return label font kwargs dict with expected values."""
+        settings = {
+            'text_label_font_name': 'arialbd.ttf',
+            'text_label_font_size': 32,
+            'text_label_font_color': 'black'
+        }
+        font_kwargs = ImageSettings._get_font_kwargs(
+            settings=settings, label_or_hint='label')
+        self.assertEqual('black', font_kwargs['font_color'])
+        self.assertEqual('Arial', font_kwargs['font'].font.family)
+        self.assertEqual('Bold', font_kwargs['font'].font.style)
+        self.assertEqual(32, font_kwargs['font'].size)
+
+    def test_get_font_kwargs_hint(self):
+        """Should return hint font kwargs dict with expected values."""
+        settings = {
+            'text_hint_font_name': 'arial.ttf',
+            'text_hint_font_size': 28,
+            'text_hint_font_color': 'black'
+        }
+        font_kwargs = ImageSettings._get_font_kwargs(
+            settings=settings, label_or_hint='hint')
+        self.assertEqual('black', font_kwargs['font_color'])
+        self.assertEqual('Arial', font_kwargs['font'].font.family)
+        self.assertEqual('Regular', font_kwargs['font'].font.style)
+        self.assertEqual(28, font_kwargs['font'].size)
+
 
 class TestImageContent(_TestImagesBase):
+    """Tests for ImageContent class."""
 
     def test_locate_image_content_columns(self):
         """Should return the column index of the image content columns."""
@@ -229,7 +398,11 @@ class TestImageContent(_TestImagesBase):
         self.assertEqual('visit', image_content[0]['file_name_column'])
         self.assertEqual(['Subject ID'], image_content[3]['text_label_column'])
 
-    def test_wrap_text_no_newline_greater_than_wrap_char(self):
+
+class TestImageContentWrapText(TestCase):
+    """Tests for ImageContent._wrap_text()"""
+
+    def test_no_newline_greater_than_wrap_char(self):
         """Should return text broken on the wrap character amount."""
         text = 'This is some text with no internal punctuation.'
         wrap = int(len(text) / 2)
@@ -237,7 +410,7 @@ class TestImageContent(_TestImagesBase):
         observed = ImageContent._wrap_text(text=text, wrap_characters=wrap)
         self.assertEqual(expected, observed)
 
-    def test_wrap_text_no_newline_less_than_wrap_char(self):
+    def test_no_newline_less_than_wrap_char(self):
         """Should return text as a list with no breaks."""
         text = 'This is some text with no internal punctuation.'
         wrap = int(len(text) + 1)
@@ -245,7 +418,7 @@ class TestImageContent(_TestImagesBase):
         observed = ImageContent._wrap_text(text=text, wrap_characters=wrap)
         self.assertEqual(expected, observed)
 
-    def test_wrap_text_with_newline_greater_than_wrap_char(self):
+    def test_newline_greater_than_wrap_char(self):
         """Should return text broken at both wrap char and punctuation."""
         text = 'This is some text. It has internal punctuation.'
         wrap = int(len(text) / 3)
@@ -254,7 +427,7 @@ class TestImageContent(_TestImagesBase):
         observed = ImageContent._wrap_text(text=text, wrap_characters=wrap)
         self.assertEqual(expected, observed)
 
-    def test_wrap_text_with_newline_less_than_wrap_char(self):
+    def test_newline_less_than_wrap_char(self):
         """Should return text broken on the internal punctuation."""
         text = 'This is some text. It has internal punctuation.'
         wrap = int(len(text) + 1)
@@ -262,7 +435,7 @@ class TestImageContent(_TestImagesBase):
         observed = ImageContent._wrap_text(text=text, wrap_characters=wrap)
         self.assertEqual(expected, observed)
 
-    def test_wrap_text_with_empty_string(self):
+    def test_empty_string(self):
         """Should return an empty list."""
         text = ''
         wrap = 10

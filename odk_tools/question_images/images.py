@@ -5,7 +5,6 @@ import textwrap
 from PIL import ImageFont
 from PIL import Image
 from PIL import ImageDraw
-import PIL as pillow
 from xlrd import open_workbook
 from itertools import chain
 
@@ -243,58 +242,78 @@ class Images(object):
     def write(xlsform_path, settings):
         """WIP: This should tie together all the image writing methods"""
         output_path = Images._create_output_directory(xlsform_path)
-        base_image, base_vertical = Images._create_base_image(
-            width=settings['image_width'],
-            height=settings['image_height'],
+        base_image, pixels_from_top = Images._prepare_base_image(settings)
+        image_generator = Images._prepare_question_images(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            settings=settings, output_path=output_path)
+        for image, image_path in image_generator:
+            image.save(image_path, 'PNG', dpi=[300, 300])
+            image.close()
+
+    @staticmethod
+    def _prepare_base_image(settings):
+        """
+        Create a base image for questions to use, possibly with a logo.
+
+        In subsequent image processing functions, pixels_from_top is used to
+        keep track of the current vertical offset as elements are added to
+        the base image.
+
+        Parameters.
+        :param settings: dict. Image settings for a language.
+        :return: PIL.Image (base image), int (current pixels_from_top)
+        """
+        pixels_from_top = 0
+        base_image = Images._create_blank_image(
+            width=settings['image_width'], height=settings['image_height'],
             color=settings['image_color'])
+
         if len(settings['logo_image_path']) > 0:
-            logo = pillow.Image.open(settings['logo_image_path'])
-            base_image, base_vertical = Images._paste_image(
-                base_image=base_image, pixels_from_top=base_vertical,
+            logo = Image.open(settings['logo_image_path'])
+            base_image, pixels_from_top = Images._paste_image(
+                base_image=base_image, pixels_from_top=pixels_from_top,
                 paste_image=logo,
                 pixels_before=settings['logo_image_pixels_before'],
                 max_height=settings['logo_image_height'])
 
-        label_font = pillow.ImageFont.truetype(
-            font=settings['text_label_font_name'],
-            size=settings['text_label_font_size'])
-        label_font_color = settings['text_label_font_color']
-        hint_font = pillow.ImageFont.truetype(
-            font=settings['text_hint_font_name'],
-            size=settings['text_hint_font_size'])
-        hint_font_color = settings['text_hint_font_color']
+        return base_image, pixels_from_top
 
-        for question in settings['image_content'][0:3]:
-            vertical = base_vertical
+    @staticmethod
+    def _prepare_question_images(base_image, pixels_from_top, settings,
+                                 output_path):
+        pixels_from_top_base = pixels_from_top
+        for question in settings['image_content']:
             question_image = base_image.copy()
-            drawer = pillow.ImageDraw.Draw(question_image)
+            pixels_from_top = pixels_from_top_base
             if len(question['text_label_column']) > 0:
-                question_image, vertical = Images._draw_text(
-                    base_image=question_image,
-                    drawer=drawer, pixels_from_top=vertical,
-                    pixels_before=settings['text_label_pixels_before'],
-                    pixels_between=settings['text_label_pixels_line'],
-                    font=label_font, font_color=label_font_color,
-                    text=question['text_label_column'])
+                question_image, pixels_from_top, over_sized_labels = \
+                    Images._draw_text(
+                        base_image=question_image,
+                        pixels_from_top=pixels_from_top,
+                        pixels_before=settings['text_label_pixels_before'],
+                        pixels_between=settings['text_label_pixels_line'],
+                        **settings['label_font_kwargs'],
+                        text=question['text_label_column'])
             if len(question['text_hint_column']) > 0:
-                question_image, vertical = Images._draw_text(
-                    base_image=question_image,
-                    drawer=drawer, pixels_from_top=vertical,
-                    pixels_before=settings['text_hint_pixels_before'],
-                    pixels_between=settings['text_hint_pixels_line'],
-                    font=hint_font, font_color=hint_font_color,
-                    text=question['text_hint_column'])
+                question_image, pixels_from_top, over_sized_hints = \
+                    Images._draw_text(
+                        base_image=question_image,
+                        pixels_from_top=pixels_from_top,
+                        pixels_before=settings['text_hint_pixels_before'],
+                        pixels_between=settings['text_hint_pixels_line'],
+                        **settings['hint_font_kwargs'],
+                        text=question['text_hint_column'])
             if len(question['nest_image_column']) > 0:
-                nest = pillow.Image.open(question['nest_image_column'])
-                question_image, vertical = Images._paste_image(
-                    base_image=question_image, pixels_from_top=vertical,
+                nest = Image.open(question['nest_image_column'])
+                question_image, pixels_from_top = Images._paste_image(
+                    base_image=question_image, pixels_from_top=pixels_from_top,
                     paste_image=nest,
                     pixels_before=settings['nest_image_pixels_before'],
                     max_height=None)
-            item_filename_ext = os.path.join(
+            question_path = os.path.join(
                 output_path, '{0}_{1}.png'.format(
                     question['file_name_column'], settings['language']))
-            question_image.save(item_filename_ext, 'PNG', dpi=[300, 300])
+            yield question_image, question_path
 
     @staticmethod
     def _create_output_directory(xlsform_path):
@@ -302,8 +321,8 @@ class Images(object):
         Create a directory for the output image files next to the xlsform.
 
         The folder will be named like "INPUT_FILENAME-media' where the provided
-        file path ends in 'INPUT_FILENAME.xlsx'. The directory will be in the same
-        folder as the xlsform.
+        file path ends in 'INPUT_FILENAME.xlsx'. The directory will be in the
+        same folder as the xlsform.
 
         If the directory exists already or there is some other problem with
         creating the directory, the exceptions will be raised / script exits.
@@ -319,21 +338,17 @@ class Images(object):
         return output_path
 
     @staticmethod
-    def _create_base_image(width, height, color):
+    def _create_blank_image(width, height, color):
         """
-        Create a base image for drawing or pasting content onto.
+        Create a blank image for drawing or pasting content onto.
 
         Parameters.
         :param width: int. Image width.
         :param height: int. Image height.
         :param color: str. HTML common name of the image color.
-        :returns image: PIL.Image. Object for adding existing content.
-        :returns drawer: PIL.ImageDraw. Object for creating new content.
-        :returns pixels_from_top: int. Consumed vertical space.
+        :return: PIL.Image. Object for adding existing content.
         """
-        image = pillow.Image.new('RGB', (int(width), int(height)), color)
-        pixels_from_top = 0
-        return image, pixels_from_top
+        return Image.new('RGB', (width, height), color)
 
     @staticmethod
     def _paste_image(base_image, pixels_from_top, paste_image,
@@ -373,21 +388,51 @@ class Images(object):
         return base_image, pixels_from_top
 
     @staticmethod
-    def _draw_text(base_image, drawer, pixels_from_top, pixels_before,
-                   pixels_between, font, font_color, text):
+    def _draw_text(base_image, pixels_from_top, pixels_before,
+                   pixels_between, font, font_color, text, image_margin=10):
+        """
+        Draw text onto an image.
+
+        If a text line exceeds the base_image dimensions minus the image_margin
+        then a tuple of the following elements:
+        - dimension: 'width' or 'height'
+        - line: the text line that was affected
+        - size: the size of the line in the dimension.
+
+        Parameters.
+        :param base_image: PIL.Image. Image to draw text onto.
+        :param pixels_from_top: int. Current pixel vertical offset.
+        :param pixels_before: int. Pixel spacing from previous element.
+        :param pixels_between: int. Pixel spacing between text lines.
+        :param font: PIL.ImageFont. Font to use for drawing text.
+        :param font_color: str. HTML common name of the font color.
+        :param text: list. Text to draw onto the image.
+        :return: PIL.Image (modified base_image), int (new vertical offset),
+            tuple (oversize lines [see above description]).
+        """
         pixels_from_top += pixels_before
+        base_image_x, base_image_y = base_image.size
+
+        drawer = ImageDraw.Draw(base_image)
+        last_text_line = text[-1]
+        oversize_lines = []
+
         for line in text:
             text_x, text_y = drawer.textsize(line, font=font)
-            base_image_x, base_image_y = base_image.size
-            text_position_x = int((base_image_x - text_x) / 2)
-            text_position_y = pixels_from_top
-            drawer.text((text_position_x, text_position_y), line, font=font,
+            draw_position_x = int((base_image_x - text_x) / 2)
+            draw_position_y = pixels_from_top
+            drawer.text((draw_position_x, draw_position_y), line, font=font,
                         fill=font_color)
-            pixels_from_top += text_y + pixels_between
-            if text_x > base_image_x:
-                print('image is too wide :(')
+            pixels_from_top_add = text_y
+            if line != last_text_line:
+                pixels_from_top_add += pixels_between
+            pixels_from_top += pixels_from_top_add
+            if text_x > (base_image_x - image_margin):
+                oversize_lines.append(('width', line, text_x))
+            if (draw_position_y + text_y) > (base_image_y - image_margin):
+                oversize_lines.append(('height', line, text_y))
 
-        return base_image, pixels_from_top
+        return base_image, pixels_from_top, oversize_lines
 
 
 class ImageSettings:
@@ -410,6 +455,10 @@ class ImageSettings:
                 settings=settings))
             settings['type_ignore_list'] = ImageSettings._csv_to_list(
                 settings['type_ignore_list'])
+            settings['label_font_kwargs'] = ImageSettings._get_font_kwargs(
+                settings, 'label')
+            settings['hint_font_kwargs'] = ImageSettings._get_font_kwargs(
+                settings, 'hint')
         return all_settings
 
     @staticmethod
@@ -480,6 +529,24 @@ class ImageSettings:
         nest_image = {'nest_image_column': str, 'nest_image_pixels_before': int}
         all_kw = {**general, **logo, **label, **hint, **nest_image}
         return all_kw
+
+    @staticmethod
+    def _get_font_kwargs(settings, label_or_hint):
+        """
+        Make a dictionary with font kwargs from the image settings.
+
+        Parameters.
+        :param settings: dict. Image settings for a language.
+        :param label_or_hint: str. Get font kwargs for 'label' or 'hint' text.
+        :return: dict. Font kwargs.
+        """
+        font_kwargs = {
+            'font': ImageFont.truetype(
+                font=settings['text_{0}_font_name'.format(label_or_hint)],
+                size=settings['text_{0}_font_size'.format(label_or_hint)]),
+            'font_color': settings['text_{0}_font_color'.format(label_or_hint)]
+        }
+        return font_kwargs
 
 
 class ImageContent:
