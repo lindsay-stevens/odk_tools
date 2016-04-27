@@ -3,7 +3,7 @@ import shutil
 import xlrd
 from unittest import TestCase
 from odk_tools.question_images.images import Images, ImageContent, \
-    ImageSettings, read_xlsform
+    ImageSettings, write_images
 from PIL import Image
 
 
@@ -24,16 +24,28 @@ class _TestImagesBase(TestCase):
             shutil.rmtree(self.test_output_folder, ignore_errors=True)
 
 
-class TestImages(_TestImagesBase):
-    """Tests for Images class."""
+class TestWriteImage(_TestImagesBase):
+    """Tests for write_images()."""
 
-    def test_output_count(self):
-        """Should create the expected number of images."""
+    def test_write_multi_language(self):
+        """Should create expected number of images for multi-language form."""
         self.clean_test_output_folder = True
-        out_path = Images._create_output_directory(self.xlsform1)
-        read_xlsform(out_path, self.xlsform1)
+        self.test_output_folder = 'Q1309_BEHAVE-media'
+        xlsform = 'Q1309_BEHAVE.xlsx'
+        write_images(xlsform_path=xlsform)
+        output_files = os.listdir(self.test_output_folder)
+        self.assertEqual(495, len(output_files))
+
+    def test_write_single_language(self):
+        """Should create expected number of images for single language form."""
+        self.clean_test_output_folder = True
+        write_images(xlsform_path=self.xlsform1)
         output_files = os.listdir(self.test_output_folder)
         self.assertEqual(184, len(output_files))
+
+
+class TestImages(_TestImagesBase):
+    """Tests for Images class."""
 
     def test_create_output_directory(self):
         """Should create a folder with the expected name."""
@@ -70,41 +82,78 @@ class TestImages(_TestImagesBase):
         expected = Images._create_blank_image(500, 500, 'white')
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
-    def test_write(self):
-        #TODO: expand to method tests
-        #self.clean_test_output_folder = True
+    def test_write_single_language(self):
+        """Should create the expected number of images."""
+        self.clean_test_output_folder = True
         settings = ImageSettings.read(xlsform_workbook=self.xlsform1_workbook)
         add_content = ImageContent.read(
             xlsform_workbook=self.xlsform1_workbook, settings=settings[2])
-        observed = Images.write(self.xlsform1, add_content)
-        print('h')
+        Images.write(self.xlsform1, add_content)
+        output_files = os.listdir(self.test_output_folder)
+        self.assertEqual(184, len(output_files))
 
 
 class TestImagesPrepareQuestionImages(_TestImagesBase):
     """Tests for Images._prepare_question_images()"""
 
-    def test_all_content_types(self):
-        """Should return image with label, hint and nested image."""
+    def setUp(self):
+        super().setUp()
         template = ImageSettings.read(xlsform_workbook=self.xlsform1_workbook)
         settings = ImageContent.read(
             xlsform_workbook=self.xlsform1_workbook, settings=template[2])
         settings['image_content'] = [x for x in settings['image_content']
                                      if x['file_name_column'] == 'da2d10ye']
+        self.settings = settings
+
+    def test_all_content_types(self):
+        """Should return image with label, hint and nested image."""
+        settings = self.settings
         base_image, pixels_from_top = Images._prepare_base_image(
             settings=settings)
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path=''))[0]
-        expected = Image.open('reference_images/da2d10ye_english.png')
+        expected = Image.open('reference_images/da2d10ye_english_all.png')
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
     def test_label_only(self):
         """Should return image with label only."""
-        pass  # TODO
+        settings = self.settings
+        settings['image_content'][0]['text_hint_column'] = ''
+        settings['image_content'][0]['nest_image_column'] = ''
+        base_image, pixels_from_top = Images._prepare_base_image(
+            settings=settings)
+        observed, _ = list(Images._prepare_question_images(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            settings=settings, output_path=''))[0]
+        expected = Image.open('reference_images/da2d10ye_english_label.png')
+        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
-    def test_label_and_nested_image(self):
+    def test_label_and_hint_only(self):
+        """Should return image with label only."""
+        settings = self.settings
+        settings['image_content'][0]['nest_image_column'] = ''
+        base_image, pixels_from_top = Images._prepare_base_image(
+            settings=settings)
+        observed, _ = list(Images._prepare_question_images(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            settings=settings, output_path=''))[0]
+        ref_image = 'reference_images/da2d10ye_english_label_hint.png'
+        expected = Image.open(ref_image)
+        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
+
+    def test_label_and_nested_image_only(self):
         """Should return image with label and nested image."""
-        pass  # TODO
+        settings = self.settings
+        settings['image_content'][0]['text_hint_column'] = ''
+        base_image, pixels_from_top = Images._prepare_base_image(
+            settings=settings)
+        observed, _ = list(Images._prepare_question_images(
+            base_image=base_image, pixels_from_top=pixels_from_top,
+            settings=settings, output_path=''))[0]
+        ref_image = 'reference_images/da2d10ye_english_label_image.png'
+        expected = Image.open(ref_image)
+        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
 
 class TestImagesPasteImage(TestCase):
@@ -358,7 +407,8 @@ class TestImageContent(_TestImagesBase):
 
     def test_locate_image_content_columns(self):
         """Should return the column index of the image content columns."""
-        expected = {'file_name_column': 1,
+        expected = {'item_type': 0,
+                    'file_name_column': 1,
                     'text_label_column': 2,
                     'text_hint_column': 3,
                     'nest_image_column': 4}
@@ -374,9 +424,10 @@ class TestImageContent(_TestImagesBase):
 
     def test_read_survey_image_content_values(self):
         """Should return content values with expected keys."""
-        expected = {'file_name_column', 'text_label_column',
-                    'text_hint_column', 'nest_image_column'}
+        expected = {'item_type', 'file_name_column', 'text_label_column',
+                    'text_hint_column', 'nest_image_column', }
         settings = {2: {'language': 'english',
+                        'item_type': 'text',
                         'file_name_column': 'name',
                         'text_label_column': 'label',
                         'text_hint_column': 'hint',
@@ -395,8 +446,8 @@ class TestImageContent(_TestImagesBase):
         observed = ImageContent.read(
             xlsform_workbook=self.xlsform1_workbook, settings=settings[2])
         image_content = observed['image_content']
-        self.assertEqual('visit', image_content[0]['file_name_column'])
-        self.assertEqual(['Subject ID'], image_content[3]['text_label_column'])
+        self.assertEqual('nl_visit', image_content[0]['file_name_column'])
+        self.assertEqual(['Subject ID'], image_content[2]['text_label_column'])
 
 
 class TestImageContentWrapText(TestCase):

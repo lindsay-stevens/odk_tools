@@ -236,11 +236,20 @@ def read_xlsform(output_path, filepath):
                 write_image(output_path, **image_settings_kwargs)
 
 
-class Images(object):
+class Images:
+    """Prepares and writes images for a given language's settings."""
 
     @staticmethod
     def write(xlsform_path, settings):
-        """WIP: This should tie together all the image writing methods"""
+        """
+        Create images for all questions in the provided settings.
+
+        Files will be placed in a folder adjacent to the xlsform.
+
+        Parameters.
+        :param xlsform_path: str. Path to xlsform.
+        :param settings: dict.
+        """
         output_path = Images._create_output_directory(xlsform_path)
         base_image, pixels_from_top = Images._prepare_base_image(settings)
         image_generator = Images._prepare_question_images(
@@ -281,6 +290,19 @@ class Images(object):
     @staticmethod
     def _prepare_question_images(base_image, pixels_from_top, settings,
                                  output_path):
+        """
+        Add relevant text and image elements to a base image.
+
+        Returns the image object and the intended output path, for another
+        procedure to call Image.save() with the desired parameters.
+
+        Parameters.
+        :param base_image: PIL.Image to add elements to.
+        :param pixels_from_top: int. current pixels from top (0 if no logo).
+        :param settings: dict. Questions and their content for a language.
+        :param output_path: str. Path to write images to.
+        :return: PIL.Image (question image) and str (image output path).
+        """
         pixels_from_top_base = pixels_from_top
         for question in settings['image_content']:
             question_image = base_image.copy()
@@ -436,6 +458,7 @@ class Images(object):
 
 
 class ImageSettings:
+    """Reads the image settings."""
 
     @staticmethod
     def read(xlsform_workbook):
@@ -550,6 +573,7 @@ class ImageSettings:
 
 
 class ImageContent:
+    """Reads the image content for a given language's settings."""
 
     @staticmethod
     def read(xlsform_workbook, settings):
@@ -573,11 +597,11 @@ class ImageContent:
 
         image_content = list()
         for i in raw_image_content:
-            if i['file_name_column'] not in settings['type_ignore_list']:
+            if i['item_type'] not in settings['type_ignore_list']:
                 i['text_label_column'] = ImageContent._wrap_text(
                     i['text_label_column'], settings['text_label_wrap_char'])
                 i['text_hint_column'] = ImageContent._wrap_text(
-                    i['text_hint_column'], settings['text_label_wrap_char'])
+                    i['text_hint_column'], settings['text_hint_wrap_char'])
                 image_content.append(i)
 
         settings['image_content'] = image_content
@@ -602,6 +626,8 @@ class ImageContent:
             heading_value = survey_sheet.cell_value(0, column_index)
             if heading_value == settings_values['file_name_column']:
                 column_locations['file_name_column'] = column_index
+            if heading_value == 'type':
+                column_locations['item_type'] = column_index
             if not heading_value.find('#') == -1:
                 heading_split = heading_value.split('#')
                 column_name = heading_split[0]
@@ -661,6 +687,21 @@ class ImageContent:
         return flatten_paragraphs
 
 
+def write_images(xlsform_path):
+    """
+    Creates images for all languages and questions in the given xlsform.
+
+    Parameters.
+    :param xlsform_path: str. Path to xlsform to process.
+    """
+    xlsform_workbook = open_workbook(filename=xlsform_path)
+    settings = ImageSettings.read(xlsform_workbook=xlsform_workbook)
+    for index, language in settings.items():
+        language = ImageContent.read(
+            xlsform_workbook=xlsform_workbook, settings=language)
+        Images.write(xlsform_path=xlsform_path, settings=language)
+
+
 if __name__ == '__main__':
     # grab the command line arguments
     parser = argparse.ArgumentParser()
@@ -668,5 +709,5 @@ if __name__ == '__main__':
         "filepath",
         help="Path to XLSForm file.")
     args = parser.parse_args()
-    out_path = Images._create_output_directory(xlsform_path=args.filepath)
-    read_xlsform(out_path, args.filepath)
+    write_images(xlsform_path=args.filepath)
+
