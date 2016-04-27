@@ -20,33 +20,44 @@ content within the image dimensions legibly and aesthetically.
 
 
 ## Text Handling
+
+
+### Alignment
 Text is written to the image center-aligned.
 
+
+### Printable Characters
 The only limitation on what characters can be written to an image is whether
 the character exists in the desired font. For example, some Unicode
 characters may not appear in the regular Arial font, but may be in Arial
 Unicode font.
 
+
+### Characters Per Line
 The maximum amount of text to be written per line is configurable in the image
 settings. If text is longer than that maximum, the text is split into multiple
 lines. If this maximum results in text outside of the width of the image, a
 warning is displayed in the script console.
 
+
+### Punctuation
 In order to provide a more easily readable text layout, the script will
 insert an extra newline after '.', '?' and '!', unless they are at the end of
-the text string. 'Extra' means stop the current line and leave one blank before
-continuing the remaining text, if any.
+the text string. 'Extra newline' means stop the current line and leave one
+blank before continuing the remaining text, if any.
 
 Frequently, these punctuation characters mark the end of a sentence, and
 frequently, multi-sentence questions have some repetitive component that is
-easier to identify if it is on a different line.
+easier to identify if it is on a different line. Since English does not adhere
+to regular patterns it's not possible to reliably identify sentence termination
+punctuation. Even with a library like NLTK there is some room for error.
 
-It is possible to insert newline characters in a spreadsheet (Alt+Enter), but
-the characters are not displayed in Excel. A trade-off for this behaviour is
-not being able to use periods for non sentence-ending punctuation, for example
-in abbreviation. The text 'e.g. apples' would be broken into 3 lines containing
-'e.', 'g.', 'apples'. Use alternatives like writing 'for example, apples', or
-'eg, apples'.
+A downside to this behaviour is that the text 'e.g. apples' would be broken
+into 3 lines containing 'e.', 'g.', 'apples'. Alternatives like writing
+'for example, apples', or 'eg, apples' can be used instead.
+
+An upside is that no markup characters are needed, so the text can be displayed
+without modification in contexts where the markup is not interpreted.
 
 
 ## Survey sheet

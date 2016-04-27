@@ -25,8 +25,13 @@ are displayed for each question.
 Function:
 
 The script relies on the presence of extended, optional metadata added to an
-XLSForm to generate images containing question and hint text. An example of
-this is in the test folder for language_editions (TODO: proper spec).
+XLSForm to generate images containing question and hint text. In the question
+images folder there is:
+- A specification for the required metadata (xlsform_images_spec.md).
+- Two example XLSForms, one with a single language (test/Q1302_BEHAVE.xlsx) and
+  one with five languages (test/Q1309_BEHAVE.xlsx).
+- Example images (test/reference_images) showing a question image with a label
+  only, a label and hint, and a label and a nested image, and all 3 together.
 
 Usage:
 The standard '-h' flag will show parameter information and usage.
@@ -37,7 +42,8 @@ images.py XFORM_NAME.xlsx
 Output:
 
 A folder named 'XFORM_NAME-media' (name matching the input file), created in
-the same directory as the input xform file.
+the same directory as the input xform file. The folder will contain an image
+per question per language, according to the specified image settings.
 
 
 ## Language Editions
