@@ -3,7 +3,7 @@ import shutil
 import xlrd
 from unittest import TestCase
 from odk_tools.question_images.images import Images, ImageContent, \
-    ImageSettings, write_images
+    ImageSettings, write_images, _create_parser
 from PIL import Image
 
 
@@ -24,8 +24,8 @@ class _TestImagesBase(TestCase):
             shutil.rmtree(self.test_output_folder, ignore_errors=True)
 
 
-class TestWriteImage(_TestImagesBase):
-    """Tests for write_images()."""
+class TestImages(_TestImagesBase):
+    """Tests for functions in the Images module."""
 
     def test_write_multi_language(self):
         """Should create expected number of images for multi-language form."""
@@ -43,8 +43,20 @@ class TestWriteImage(_TestImagesBase):
         output_files = os.listdir(self.test_output_folder)
         self.assertEqual(184, len(output_files))
 
+    def test_create_parser_with_args(self):
+        """Should parse the provided argument."""
+        with self.assertRaises(SystemExit):
+            _create_parser().parse_args([])
 
-class TestImages(_TestImagesBase):
+    def test_create_parser_without_args(self):
+        """Should exit when no args provided."""
+        self.clean_test_output_folder = True
+        input_arg = 'Q1302_BEHAVE.xlsx'
+        args = _create_parser().parse_args([input_arg])
+        self.assertEqual(input_arg, args.xlsform)
+
+
+class TestImagesImage(_TestImagesBase):
     """Tests for Images class."""
 
     def test_create_output_directory(self):
@@ -53,6 +65,29 @@ class TestImages(_TestImagesBase):
         shutil.rmtree(self.test_output_folder, ignore_errors=True)
         self.assertFalse(os.path.isdir(self.test_output_folder))
         Images._create_output_directory(self.xlsform1)
+        self.assertTrue(os.path.isdir(self.test_output_folder))
+
+    def test_create_output_directory_with_spaces(self):
+        """Should create a folder with the expected name."""
+        self.clean_test_output_folder = True
+        self.test_output_folder = 'folder with spaces'
+        test_file_path = 'folder with spaces/dummy_file.txt'
+        shutil.rmtree(self.test_output_folder, ignore_errors=True)
+        self.assertFalse(os.path.isdir(self.test_output_folder))
+        Images._create_output_directory(test_file_path)
+        self.assertTrue(os.path.isdir(self.test_output_folder))
+
+    def test_create_output_directory_with_spaces_unc(self):
+        """Should create a folder with the expected name."""
+        self.clean_test_output_folder = True
+        current_folder = os.path.dirname(__file__)
+        test_folder = os.path.join(current_folder, 'folder with spaces')
+        unc_path = '\\\\localhost\\c$' + test_folder[2:]
+        self.test_output_folder = test_folder
+        test_file_path = unc_path + '\\my_xlsform.xlsx'
+        shutil.rmtree(self.test_output_folder, ignore_errors=True)
+        self.assertFalse(os.path.isdir(self.test_output_folder))
+        Images._create_output_directory(test_file_path)
         self.assertTrue(os.path.isdir(self.test_output_folder))
 
     def test_create_blank_image(self):
