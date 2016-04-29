@@ -43,13 +43,13 @@ class TestImages(_TestImagesBase):
         output_files = os.listdir(self.test_output_folder)
         self.assertEqual(184, len(output_files))
 
-    def test_create_parser_with_args(self):
-        """Should parse the provided argument."""
+    def test_create_parser_without_args(self):
+        """Should exit when no args provided."""
         with self.assertRaises(SystemExit):
             _create_parser().parse_args([])
 
-    def test_create_parser_without_args(self):
-        """Should exit when no args provided."""
+    def test_create_parser_with_args(self):
+        """Should parse the provided argument."""
         self.clean_test_output_folder = True
         input_arg = 'Q1302_BEHAVE.xlsx'
         args = _create_parser().parse_args([input_arg])

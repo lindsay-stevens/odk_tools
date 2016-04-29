@@ -16,13 +16,14 @@ workflow from design to deployment is included, for example:
   the xform XML, question images, and a list of sites and languages.
 
 ## Question Images
-Purpose:
+
+### Purpose
 
 The ODK Collect app for Android does not have a capability for styling text,
 and just presents the text plainly. This script creates images for itext that
 are displayed for each question.
 
-Function:
+### Function
 
 The script relies on the presence of extended, optional metadata added to an
 XLSForm to generate images containing question and hint text. In the question
@@ -33,13 +34,13 @@ images folder there is:
 - Example images (test/reference_images) showing a question image with a label
   only, a label and hint, and a label and a nested image, and all 3 together.
 
-Usage:
+### Usage
 The standard '-h' flag will show parameter information and usage.
 ```shell
 images.py XFORM_NAME.xlsx
 ```
 
-Output:
+### Output
 
 A folder named 'XFORM_NAME-media' (name matching the input file), created in
 the same directory as the input xform file. The folder will contain an image
@@ -47,7 +48,9 @@ per question per language, according to the specified image settings.
 
 
 ## Language Editions
-Purpose:
+
+
+### Purpose
 
 A XLSForm may be used to prepare a questionnaire for many languages, but it may
 be preferable / required to only provide the languages that will be used by the
@@ -65,19 +68,19 @@ named 'SID', which is assumed to be the subject ID. This is so that the default
 value is, for example, '1309-61202-', instead of just '1309-'.
 
 
-Function:
+### Function
 
 The script requires an XForm, a XForm-media folder, a XLSX sheet that describes
 which sites require which languages, and the path to a 7zip executable. An
 example of this is in the test folder for language_editions (TODO: proper spec).
 
-Usage:
+### Usage
 The standard '-h' flag will show parameter information and usage.
 ```shell
 editions.py XFORM.xml site_langs.xlsx
 ```
 
-Output:
+### Output
 
 A folder named 'editions' in the same folder as the input xform file,
 containing a zip archive for each site, containing the modified xform file
