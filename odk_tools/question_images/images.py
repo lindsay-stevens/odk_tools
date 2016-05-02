@@ -250,12 +250,13 @@ class Images:
         :param xlsform_path: str. Path to xlsform.
         :return: PIL.Image The opened image.
         """
+        work_dir = os.path.dirname(xlsform_path)
         try:
             return Image.open(image_path)
         except FileNotFoundError:
             pass
         try:
-            join_path = os.path.join(xlsform_path, image_path)
+            join_path = os.path.join(work_dir, image_path)
             return Image.open(join_path)
         except FileNotFoundError as fe:
             msg = "Failed to open {0} as relative or absolute path. " \

@@ -66,7 +66,7 @@ class TestImages(_TestImagesBase):
     def test_open_image_relative_path(self):
         """Should return Image if the path is relative to the xlsform."""
         image_path = "open_image.png"
-        xlsform_path = "reference_images"
+        xlsform_path = "reference_images/xlsform.xlsx"
         observed = Images._open_image(image_path=image_path,
                                       xlsform_path=xlsform_path)
         self.assertEqual('PNG', observed.format)
@@ -75,11 +75,10 @@ class TestImages(_TestImagesBase):
         """Should return Image if the path is absolute."""
         image_path = os.path.join(os.path.dirname(__file__),
                                   "reference_images", "open_image.png")
-        xlsform_path = ""
+        xlsform_path = "xlsform.xlsx"
         observed = Images._open_image(image_path=image_path,
                                       xlsform_path=xlsform_path)
         self.assertEqual('PNG', observed.format)
-
 
 
 class TestImagesImage(_TestImagesBase):
