@@ -1,5 +1,6 @@
 include LICENSE
-include README.rst
+include README.md
+include end_user_guide.md
 recursive-include odk_tools *
 recursive-exclude odk_tools *.pyc *.png
 
