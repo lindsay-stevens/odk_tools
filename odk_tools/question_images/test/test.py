@@ -55,6 +55,32 @@ class TestImages(_TestImagesBase):
         args = _create_parser().parse_args([input_arg])
         self.assertEqual(input_arg, args.xlsform)
 
+    def test_open_image_bad_path(self):
+        """Should raise a FileNotFoundError if the file doesn't exist."""
+        image_path = "some_image.png"
+        xlsform_path = ""
+        self.assertFalse(os.path.isfile(image_path))
+        with self.assertRaises(FileNotFoundError):
+            Images._open_image(image_path=image_path, xlsform_path=xlsform_path)
+
+    def test_open_image_relative_path(self):
+        """Should return Image if the path is relative to the xlsform."""
+        image_path = "open_image.png"
+        xlsform_path = "reference_images"
+        observed = Images._open_image(image_path=image_path,
+                                      xlsform_path=xlsform_path)
+        self.assertEqual('PNG', observed.format)
+
+    def test_open_image_absolute_path(self):
+        """Should return Image if the path is absolute."""
+        image_path = os.path.join(os.path.dirname(__file__),
+                                  "reference_images", "open_image.png")
+        xlsform_path = ""
+        observed = Images._open_image(image_path=image_path,
+                                      xlsform_path=xlsform_path)
+        self.assertEqual('PNG', observed.format)
+
+
 
 class TestImagesImage(_TestImagesBase):
     """Tests for Images class."""
@@ -104,7 +130,8 @@ class TestImagesImage(_TestImagesBase):
                     'logo_image_path': 'nest_images/stopc-logo.png',
                     'logo_image_pixels_before': 10,
                     'logo_image_height': 40}
-        observed, _ = Images._prepare_base_image(settings)
+        observed, _ = Images._prepare_base_image(settings=settings,
+                                                 xlsform_path="")
         expected = Image.open('reference_images/base_logo.png')
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
         expected.close()
@@ -113,7 +140,8 @@ class TestImagesImage(_TestImagesBase):
         """Should return a base image with no logo."""
         settings = {'image_width': 500, 'image_height': 500,
                     'image_color': 'white', 'logo_image_path': ''}
-        observed, _ = Images._prepare_base_image(settings)
+        observed, _ = Images._prepare_base_image(settings=settings,
+                                                 xlsform_path="")
         expected = Images._create_blank_image(500, 500, 'white')
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
@@ -144,10 +172,10 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         """Should return image with label, hint and nested image."""
         settings = self.settings
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings)
+            settings=settings, xlsform_path="")
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path=''))[0]
+            settings=settings, output_path='', xlsform_path=""))[0]
         expected = Image.open('reference_images/da2d10ye_english_all.png')
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
@@ -157,10 +185,10 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         settings['image_content'][0]['text_hint_column'] = ''
         settings['image_content'][0]['nest_image_column'] = ''
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings)
+            settings=settings, xlsform_path="")
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path=''))[0]
+            settings=settings, output_path='', xlsform_path=""))[0]
         expected = Image.open('reference_images/da2d10ye_english_label.png')
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
@@ -169,10 +197,10 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         settings = self.settings
         settings['image_content'][0]['nest_image_column'] = ''
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings)
+            settings=settings, xlsform_path="")
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path=''))[0]
+            settings=settings, output_path='', xlsform_path=""))[0]
         ref_image = 'reference_images/da2d10ye_english_label_hint.png'
         expected = Image.open(ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
@@ -182,10 +210,10 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         settings = self.settings
         settings['image_content'][0]['text_hint_column'] = ''
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings)
+            settings=settings, xlsform_path="")
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path=''))[0]
+            settings=settings, output_path='', xlsform_path=""))[0]
         ref_image = 'reference_images/da2d10ye_english_label_image.png'
         expected = Image.open(ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))

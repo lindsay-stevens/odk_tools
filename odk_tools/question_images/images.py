@@ -24,16 +24,18 @@ class Images:
         :param settings: dict.
         """
         output_path = Images._create_output_directory(xlsform_path)
-        base_image, pixels_from_top = Images._prepare_base_image(settings)
+        base_image, pixels_from_top = Images._prepare_base_image(
+            settings=settings, xlsform_path=xlsform_path)
         image_generator = Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path=output_path)
+            settings=settings, output_path=output_path,
+            xlsform_path=xlsform_path)
         for image, image_path in image_generator:
             image.save(image_path, 'PNG', dpi=[300, 300])
             image.close()
 
     @staticmethod
-    def _prepare_base_image(settings):
+    def _prepare_base_image(settings, xlsform_path):
         """
         Create a base image for questions to use, possibly with a logo.
 
@@ -43,6 +45,7 @@ class Images:
 
         Parameters.
         :param settings: dict. Image settings for a language.
+        :param xlsform_path: str. Path to xlsform.
         :return: PIL.Image (base image), int (current pixels_from_top)
         """
         pixels_from_top = 0
@@ -51,7 +54,8 @@ class Images:
             color=settings['image_color'])
 
         if len(settings['logo_image_path']) > 0:
-            logo = Image.open(settings['logo_image_path'])
+            logo = Images._open_image(image_path=settings['logo_image_path'],
+                                      xlsform_path=xlsform_path)
             base_image, pixels_from_top = Images._paste_image(
                 base_image=base_image, pixels_from_top=pixels_from_top,
                 paste_image=logo,
@@ -62,7 +66,7 @@ class Images:
 
     @staticmethod
     def _prepare_question_images(base_image, pixels_from_top, settings,
-                                 output_path):
+                                 output_path, xlsform_path):
         """
         Add relevant text and image elements to a base image.
 
@@ -74,6 +78,7 @@ class Images:
         :param pixels_from_top: int. current pixels from top (0 if no logo).
         :param settings: dict. Questions and their content for a language.
         :param output_path: str. Path to write images to.
+        :param xlsform_path: str.
         :return: PIL.Image (question image) and str (image output path).
         """
         pixels_from_top_base = pixels_from_top
@@ -103,7 +108,9 @@ class Images:
                 if len(over_sized_hints) > 0:
                     print(settings['language'], over_sized_hints)
             if len(question['nest_image_column']) > 0:
-                nest = Image.open(question['nest_image_column'])
+                nest = Images._open_image(
+                    image_path=question['nest_image_column'],
+                    xlsform_path=xlsform_path)
                 question_image, pixels_from_top = Images._paste_image(
                     base_image=question_image, pixels_from_top=pixels_from_top,
                     paste_image=nest,
@@ -232,6 +239,29 @@ class Images:
                 oversize_lines.append(('height', line, text_y))
 
         return base_image, pixels_from_top, oversize_lines
+
+    @staticmethod
+    def _open_image(image_path, xlsform_path):
+        """
+        Try to open an image from the provided path, or as a relative path.
+
+        Parameters.
+        :param image_path: str. Path to image to attempt to open.
+        :param xlsform_path: str. Path to xlsform.
+        :return: PIL.Image The opened image.
+        """
+        try:
+            return Image.open(image_path)
+        except FileNotFoundError:
+            pass
+        try:
+            join_path = os.path.join(xlsform_path, image_path)
+            return Image.open(join_path)
+        except FileNotFoundError as fe:
+            msg = "Failed to open {0} as relative or absolute path. " \
+                  "Please check that the images exist in the locations that " \
+                  "are referred to in the xlsform.".format(image_path)
+            raise FileNotFoundError(msg, fe)
 
 
 class ImageSettings:
