@@ -64,6 +64,7 @@ without modification in contexts where the markup is not interpreted.
 The XLSForm language suffix convention allows specifying question label, hint
 image and constraint message information for each language. For example, the
 following columns specify the label for 2 languages:
+
 - label::english
 - label::french
 - label::german
@@ -72,6 +73,7 @@ To trigger the generation of translation data for the xform in xls2xform, the
 above columns need to be present, but blank. A new column per language (using
 a '#' separator instead of a '::') should contain the text to go in the image.
 The xls2xform tool ignores the '#' separator columns. For example:
+
 - label::english
 - label#english
 - label::french
@@ -81,6 +83,7 @@ Label text is added to the image at the top, followed by the hint text. If a
 question image is specified, it will be inserted below the hint text.
 
 The full set of language specific columns are as follows:
+
 - label#english
 - hint#english
 - image#english
@@ -95,6 +98,7 @@ The new image_settings sheet allows some customisation of the layout of the
 output image. Like the 'choices' sheet, a column for each language in the
 'survey' sheet should be created. The first column must contain the setting
 names, subsequent columns contain the values for each language. For example:
+
 - settings
 - value::english
 - value::french
@@ -103,6 +107,7 @@ names, subsequent columns contain the values for each language. For example:
 The image settings are described in the following sections. All settings are in
 one continuous list in the 'image_settings' sheet, but are broken up here for
 legibility.
+
 - General image settings
 - Logo settings
 - Label text settings
@@ -113,6 +118,7 @@ legibility.
 ### General Image Settings
 These settings define the file names, item types, dimensions and colour of
 to use for the generated image files.
+
 - file_name_column: The column in the 'survey' sheet with name of output file.
   Generally this will be the 'name' column so that each image has the same name
   as the item it corresponds to, but it could be something else if desired.
@@ -132,6 +138,7 @@ to use for the generated image files.
 
 ### Logo Settings
 These settings define the source, placement and size of a logo image.
+
 - logo_image_path: Path (full path, or relative to the XLSForm) to an image
   file (for example, a logo) to place at the top of every question image.
 - logo_image_pixels_before: In pixels, the distance of the logo image from
@@ -144,6 +151,7 @@ These settings define the source, placement and size of a logo image.
 ### Label Text Settings
 These settings define the source, placement, sizing, font properties and colour
 of the item label text.
+
 - text_label_column: Name of the 'survey' sheet column with the label text. If
   the corresponding value is blank for an item then no label text is included.
 - text_label_pixels_before: In pixels, the distance of the beginning of the
@@ -166,6 +174,7 @@ of the item label text.
 ### Hint Text Settings
 These settings define the source, placement, sizing, font properties and colour
 of the item hint text.
+
 - text_hint_column: Name of the 'survey' sheet column with the hint text. If
   the corresponding value is blank for an item then no hint text is included.
 - text_hint_pixels_before: In pixels, the distance of the beginning of the
@@ -182,6 +191,7 @@ of the item hint text.
 
 ### Nested Image Settings
 These settings define the source and placement of a nested image.
+
 - nest_image_column: Name of the 'survey' sheet column with the path (full
   path, or relative to the XLSForm) to an image file (for example, a logo) to
   place at the top of every question image. If the corresponding value is blank
