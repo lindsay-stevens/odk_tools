@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="odk_tools",
-    version="0.0.6",
+    version="0.0.7",
     description="Tools for working with ODK XLSforms.",
     url="https://github.com/lindsay-stevens-kirby/",
     author="Lindsay Stevens",
