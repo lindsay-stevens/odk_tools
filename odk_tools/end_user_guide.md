@@ -28,8 +28,8 @@ All tools are used from the command line. To open a PowerShell command prompt
 in the folder currently open in Windows Explorer:
 
 - Select the Windows Explorer address bar, by either:
-  + Clicking on the address bar, or
-  + Pressing Alt and D together.
+    + Clicking on the address bar, or
+    + Pressing Alt and D together.
 - Type "powershell" into the address bar,
 - Press Enter.
 
