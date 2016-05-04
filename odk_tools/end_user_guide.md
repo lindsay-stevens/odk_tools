@@ -22,9 +22,21 @@ The editions tool is only needed for studies with more than one language.
 
 
 ## Usage
-All tools are used on the command line. To open a command prompt, press Shift 
-and right click anywhere in the folder where the tools are, then choose "Open 
-command window here". Tool specific instructions follow.
+Tool specific instructions are in the following sections.
+
+All tools are used from the command line. To open a PowerShell command prompt
+in the folder currently open in Windows Explorer:
+
+- Select the Windows Explorer address bar, by either:
+  + Clicking on the address bar, or
+  + Pressing Alt and D together.
+- Type "powershell" into the address bar,
+- Press Enter.
+
+PowerShell is used instead of "cmd.exe" since the latter doesn't support having
+a current directory that is a network location. This results in a drive letter
+being mapped each time "cmd.exe" is opened, and it will eventually run out of
+drive letters.
 
 The file names of each tool have appended to them the first 6 characters of the 
 git commit hash that the file was generated from, in order to keep track what 
