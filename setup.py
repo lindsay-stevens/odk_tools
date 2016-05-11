@@ -12,7 +12,8 @@ setup(
     license="MIT",
     install_requires=[
         'python-docx>=0.8.5', 'xlrd>=0.9.4',
-        'Pillow>=3.0.0', 'lxml>=3.5.0'],
+        'Pillow>=3.0.0', 'lxml>=3.5.0',
+        'https://github.com/XLSForm/pyxform/archive/e33e260b3ae532dabbda9c9843b0f525da67d001.zip'],
     keywords="odk",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
