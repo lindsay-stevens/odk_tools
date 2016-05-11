@@ -2,8 +2,9 @@ import os
 import shutil
 import xlrd
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
 from odk_tools.question_images.images import Images, ImageContent, \
-    ImageSettings, write_images, _create_parser
+    ImageSettings, write_images, _create_parser, logger
 from PIL import Image
 
 
@@ -327,13 +328,14 @@ class TestImagesDrawText(_TestImagesBase):
         text = ['This is some text', 'that is for a question']
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        drawn_image, vertical, oversize_lines = Images._draw_text(
-            base_image=base_image, pixels_from_top=0, pixels_before=10,
-            pixels_between=5, **font_kwargs, text=text)
+        with patch('logging.Logger.warn', MagicMock()):
+            drawn_image, vertical = Images._draw_text(
+                base_image=base_image, pixels_from_top=0, pixels_before=10,
+                pixels_between=5, **font_kwargs, text=text, image_name='img')
+            self.assertFalse(logger.warn.called)
         self.assertNotEqual(list(original_image.getdata()),
                             list(drawn_image.getdata()))
         self.assertEqual(79, vertical)
-        self.assertEqual(0, len(oversize_lines))
 
     def test_line_exceeds_width(self):
         """Should return an error indicating the line that was too wide."""
@@ -344,11 +346,14 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        _, _, observed = Images._draw_text(
-            base_image=base_image, pixels_from_top=0, pixels_before=10,
-            pixels_between=5, **font_kwargs, text=text)
-        expected = [('width', text[0], 589)]
-        self.assertEqual(expected, observed)
+        with self.assertLogs(logger=logger, level="WARN") as logs:
+            Images._draw_text(
+                base_image=base_image, pixels_from_top=0, pixels_before=10,
+                pixels_between=5, **font_kwargs, text=text, image_name="img")
+        expected = "WARNING:odk_tools.question_images.images:" \
+                   "Text outside image margins. image name (img)," \
+                   " dim (width), pos (589), text ({0})".format(text[0])
+        self.assertEqual(expected, logs.output[0])
 
     def test_line_exceeds_height(self):
         """Should return an error indicating the line that was too tall."""
@@ -359,11 +364,14 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        _, _, observed = Images._draw_text(
-            base_image=base_image, pixels_from_top=0, pixels_before=10,
-            pixels_between=5, **font_kwargs, text=text)
-        expected = [('height', text[1], 59)]
-        self.assertEqual(expected, observed)
+        with self.assertLogs(logger=logger, level="WARN") as logs:
+            Images._draw_text(
+                base_image=base_image, pixels_from_top=0, pixels_before=10,
+                pixels_between=5, **font_kwargs, text=text, image_name="img")
+        expected = "WARNING:odk_tools.question_images.images:" \
+                   "Text outside image margins. image name (img)," \
+                   " dim (height), pos (59), text ({0})".format(text[1])
+        self.assertEqual(expected, logs.output[0])
 
     def test_line_exceeds_width_and_height(self):
         """Should return an errors indicating the line is too wide and tall."""
@@ -374,11 +382,15 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        _, _, observed = Images._draw_text(
-            base_image=base_image, pixels_from_top=0, pixels_before=10,
-            pixels_between=5, **font_kwargs, text=text)
-        expected = [('width', text[0], 436), ('height', text[0], 72)]
-        self.assertEqual(expected, observed)
+        with self.assertLogs(logger=logger, level="WARN") as logs:
+            Images._draw_text(
+                base_image=base_image, pixels_from_top=0, pixels_before=10,
+                pixels_between=5, **font_kwargs, text=text, image_name="img")
+        self.assertEqual(2, len(logs.output))
+        expected_width = "dim (width), pos (436), text ({0})".format(text[0])
+        self.assertTrue(logs.output[0].endswith(expected_width))
+        expected_height = "dim (height), pos (72), text ({0})".format(text[0])
+        self.assertTrue(logs.output[1].endswith(expected_height))
 
     def test_line_exceeds_width_and_height_multiple(self):
         """Should return an errors indicating which lines are too big."""
@@ -389,12 +401,12 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        _, _, observed = Images._draw_text(
-            base_image=base_image, pixels_from_top=0, pixels_before=10,
-            pixels_between=5, **font_kwargs, text=text)
-        expected = [('width', text[0], 568),
-                    ('width', text[1], 411), ('height', text[1], 59)]
-        self.assertEqual(expected, observed)
+        with self.assertLogs(logger=logger, level="WARN") as logs:
+            Images._draw_text(
+                base_image=base_image, pixels_from_top=0, pixels_before=10,
+                pixels_between=5, **font_kwargs, text=text, image_name="img")
+        expected = 3
+        self.assertEqual(expected, len(logs.output))
 
 
 class TestImageSettings(_TestImagesBase):

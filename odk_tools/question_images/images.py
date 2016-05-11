@@ -7,6 +7,11 @@ from PIL import Image
 from PIL import ImageDraw
 from xlrd import open_workbook
 from itertools import chain
+import logging
+
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class Images:
@@ -85,28 +90,30 @@ class Images:
         for question in settings['image_content']:
             question_image = base_image.copy()
             pixels_from_top = pixels_from_top_base
+            question_path = os.path.join(
+                output_path, '{0}_{1}.png'.format(
+                    question['file_name_column'], settings['language']))
+
             if len(question['text_label_column']) > 0:
-                question_image, pixels_from_top, over_sized_labels = \
+                question_image, pixels_from_top = \
                     Images._draw_text(
                         base_image=question_image,
                         pixels_from_top=pixels_from_top,
                         pixels_before=settings['text_label_pixels_before'],
                         pixels_between=settings['text_label_pixels_line'],
                         **settings['label_font_kwargs'],
-                        text=question['text_label_column'])
-                if len(over_sized_labels) > 0:
-                    print(settings['language'], over_sized_labels)
+                        text=question['text_label_column'],
+                        image_name=question_path)
             if len(question['text_hint_column']) > 0:
-                question_image, pixels_from_top, over_sized_hints = \
+                question_image, pixels_from_top = \
                     Images._draw_text(
                         base_image=question_image,
                         pixels_from_top=pixels_from_top,
                         pixels_before=settings['text_hint_pixels_before'],
                         pixels_between=settings['text_hint_pixels_line'],
                         **settings['hint_font_kwargs'],
-                        text=question['text_hint_column'])
-                if len(over_sized_hints) > 0:
-                    print(settings['language'], over_sized_hints)
+                        text=question['text_hint_column'],
+                        image_name=question_path)
             if len(question['nest_image_column']) > 0:
                 nest = Images._open_image(
                     image_path=question['nest_image_column'],
@@ -116,9 +123,7 @@ class Images:
                     paste_image=nest,
                     pixels_before=settings['nest_image_pixels_before'],
                     max_height=None)
-            question_path = os.path.join(
-                output_path, '{0}_{1}.png'.format(
-                    question['file_name_column'], settings['language']))
+
             yield question_image, question_path
 
     @staticmethod
@@ -194,16 +199,17 @@ class Images:
         return base_image, pixels_from_top
 
     @staticmethod
-    def _draw_text(base_image, pixels_from_top, pixels_before,
-                   pixels_between, font, font_color, text, image_margin=10):
+    def _draw_text(base_image, pixels_from_top, pixels_before, pixels_between,
+                   font, font_color, text, image_name, image_margin=10):
         """
         Draw text onto an image.
 
         If a text line exceeds the base_image dimensions minus the image_margin
-        then a tuple of the following elements:
-        - dimension: 'width' or 'height'
-        - line: the text line that was affected
-        - size: the size of the line in the dimension.
+        then the following information is logged:
+        - image_name,
+        - dimension: 'width' or 'height',
+        - size: the size of the line in the above dimension,
+        - line: the line of text that was affected.
 
         Parameters.
         :param base_image: PIL.Image. Image to draw text onto.
@@ -213,15 +219,17 @@ class Images:
         :param font: PIL.ImageFont. Font to use for drawing text.
         :param font_color: str. HTML common name of the font color.
         :param text: list. Text to draw onto the image.
-        :return: PIL.Image (modified base_image), int (new vertical offset),
-            tuple (oversize lines [see above description]).
+        :param image_name: str. Name of image the text is being drawn for.
+        :param image_margin: int: Margin around image border to reserve.
+        :return: PIL.Image (modified base_image), int (new vertical offset).
         """
         pixels_from_top += pixels_before
         base_image_x, base_image_y = base_image.size
 
         drawer = ImageDraw.Draw(base_image)
         last_text_line = text[-1]
-        oversize_lines = []
+        warn_fmt = "Text outside image margins." \
+                   " image name ({0}), dim ({1}), pos ({2}), text ({3})"
 
         for line in text:
             text_x, text_y = drawer.textsize(line, font=font)
@@ -234,11 +242,11 @@ class Images:
                 pixels_from_top_add += pixels_between
             pixels_from_top += pixels_from_top_add
             if text_x > (base_image_x - image_margin):
-                oversize_lines.append(('width', line, text_x))
+                logger.warn(warn_fmt.format(image_name, 'width', text_x, line))
             if (draw_position_y + text_y) > (base_image_y - image_margin):
-                oversize_lines.append(('height', line, text_y))
+                logger.warn(warn_fmt.format(image_name, 'height', text_y, line))
 
-        return base_image, pixels_from_top, oversize_lines
+        return base_image, pixels_from_top
 
     @staticmethod
     def _open_image(image_path, xlsform_path):
@@ -525,10 +533,11 @@ def _create_parser():
 
 def main_cli():
     """
-     and run the script accordingly.
+    Collect script arguments from stdin and run write_images.
     """
     parser = _create_parser()
     args = parser.parse_args()
+    logger.addHandler(logging.StreamHandler())
     write_images(xlsform_path=args.xlsform)
 
 
