@@ -7,6 +7,7 @@ import sys
 import subprocess
 from pyxform.xls2xform import xls2xform_convert
 from odk_tools.question_images import images
+from odk_tools.language_editions import editions
 import logging
 import collections
 
@@ -105,19 +106,24 @@ class ODKToolsGui:
 
         master.sep2 = ttk.Separator(master=master).grid(sticky="we")
 
-        master.xlsform_sl_path, xlsform_sl_path = ODKToolsGui.build_path_frame(
+        master.xform_sl_path, xform_sl_path = ODKToolsGui.build_path_frame(
             master=master,
-            label_text="* XLSForm path", label_width=label_width,
+            label_text="* XForm path", label_width=label_width,
             textbox_width=textbox_width, browser_kw=xlsx_browse)
         master.sitelangs_path, sitelangs_path = ODKToolsGui.build_path_frame(
             master=master,
             label_text="* Site Languages path", label_width=label_width,
             textbox_width=textbox_width, browser_kw=xlsx_browse)
+        master.z7zip_path, z7zip_path = ODKToolsGui.build_path_frame(
+            master=master,
+            label_text="7zip path", label_width=label_width,
+            textbox_width=textbox_width, browser_kw=exe_browse)
         master.generate_editions = ODKToolsGui.build_action_frame(
             master=master,
             label_text="Generate Editions", label_width=label_width,
             command=lambda: ODKToolsGui.generate_editions(
-                xlsform_path=xlsform_sl_path, sitelangs_path=sitelangs_path))
+                master=master, xform_path=xform_sl_path,
+                sitelangs_path=sitelangs_path, z7zip_path=z7zip_path))
 
         master.sep3 = ttk.Separator(master=master).grid(sticky="we")
 
@@ -477,9 +483,83 @@ class ODKToolsGui:
         master.output.textbox.insert(tkinter.END, text)
 
     @staticmethod
-    def generate_editions(xlsform_path, sitelangs_path):
-        print('generate editions at', xlsform_path.get(), sitelangs_path.get())
-        # TODO
+    def _is_7zip_callable(popen_kwargs):
+        """
+        Check if 7zip can be invoked, and return the exec path.
+
+        On Windows, assume 64-bit Program Files. Otherwise, assume it's on PATH.
+
+        Parameters.
+        :param popen_kwargs: dict. Options to pass through to subprocess.Popen.
+        :return: bool (working java -version), str (path to java)
+        """
+        if os.name == "nt":
+            path = "C:/Program Files/7-zip/7z"
+        else:
+            path = "7z"
+        cmd = "{0} -version".format(path)
+        p = subprocess.Popen(cmd, **popen_kwargs)
+        found = p.stdout.read().startswith('\n7-Zip')
+        return found, path
+
+    @staticmethod
+    def _run_generate_editions(xform_path, sitelangs_path, z7zip_path):
+        """
+        Return edition generation result, including any stderr / stdout content.
+
+        If the paths is not resolved, error message boxes are opened to
+        indicate this clearly to the user.
+
+        Parameters.
+        :param xform_path: str. Path to XLSForm to convert.
+        :param sitelangs_path: str. Path to site languages spreadsheet.
+        :param z7zip_path: str. Optional path to 7zip.
+        :return: tuple (output header message, message content)
+        """
+        valid_xform = ODKToolsGui._validate_path("XLSForm path", xform_path)
+        valid_sitelang = ODKToolsGui._validate_path(
+            "Site Languages path", sitelangs_path)
+
+        if len(z7zip_path) == 0:
+            valid_z7zip, z7zip_path = ODKToolsGui._is_7zip_callable(
+                popen_kwargs=ODKToolsGui._popen_kwargs())
+        else:
+            valid_z7zip = ODKToolsGui._validate_path("7zip path", z7zip_path)
+
+        if valid_xform and valid_sitelang and valid_z7zip:
+            unquoted_xform = xform_path.strip('"')
+            unquoted_sitelang = sitelangs_path.strip('"')
+            header = "Generate Editions was run. Output below."
+            editions_log = logging.getLogger(
+                'odk_tools.language_editions.editions')
+            log_capture = _CapturingHandler(logger=editions_log)
+            content = log_capture.watcher.output
+            editions.write_editions(xform_path=unquoted_xform,
+                                    site_languages=unquoted_sitelang,
+                                    z7zip_path=z7zip_path)
+        else:
+            header = "Generate Editions not run: invalid arguments."
+            content = None
+
+        return header, content
+
+    @staticmethod
+    def generate_editions(master, xform_path, sitelangs_path, z7zip_path):
+        """
+        Run the editions generator, clear the textbox and insert the output.
+
+        Parameters.
+        :param master: tkinter.Frame. Frame where master.output.textbox is.
+        :param xform_path: str. Path to XLSForm to convert.
+        :param sitelangs_path: str. Path to site languages spreadsheet.
+        :param z7zip_path: str. Optional path to 7zip.
+        """
+        header, content = ODKToolsGui._run_generate_editions(
+            xform_path=xform_path.get(), sitelangs_path=sitelangs_path.get(),
+            z7zip_path=z7zip_path.get())
+        text = ODKToolsGui._format_output(header=header, content=content)
+        master.output.textbox.delete("1.0", tkinter.END)
+        master.output.textbox.insert(tkinter.END, text)
 
 
 if __name__ == "__main__":

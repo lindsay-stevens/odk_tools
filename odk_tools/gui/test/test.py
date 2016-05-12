@@ -17,6 +17,7 @@ class TestGui(unittest.TestCase):
         cls.fixture_path_xlsform = os.path.join(cwd, "Q1302_BEHAVE.xlsx")
         cls.fixture_path_xlsform_huge_fonts = os.path.join(
             cwd, "R1309_BEHAVE_huge_fonts.xlsx")
+        cls.fixture_path_sitelangs = os.path.join(cwd, "site_languages.xlsx")
 
     def setUp(self):
         self.remove_after_done = None
@@ -26,11 +27,11 @@ class TestGui(unittest.TestCase):
             os.remove(self.remove_after_done)
 
     @unittest.skipIf(os.environ.get('JAVA_HOME') is None, "JAVA_HOME not set.")
-    def test_is_java_callable_true_with_java_home_set(self):
+    def test_is_java_callable_with_java_home_set(self):
         """Should locate java."""
         popen_kw = gui._popen_kwargs()
         popen_kw['env'] = {'JAVA_HOME': os.environ.get('JAVA_HOME')}
-        observed, _ = gui._is_java_callable(popen_kwargs=gui._popen_kwargs())
+        observed, _ = gui._is_java_callable(popen_kwargs=popen_kw)
         self.assertTrue(observed)
 
     def test_is_java_callable_false_without_java_home(self):
@@ -107,23 +108,21 @@ class TestGui(unittest.TestCase):
 
     def test_validate_path_blank_xform(self):
         """Should open a File Error message box."""
-        msgbox = messagebox
-        msgbox.showerror = MagicMock()
-        gui._validate_path(variable_name="XForm path", path='bananas')
+        with patch('tkinter.messagebox.showerror', MagicMock()) as msg_box:
+            gui._validate_path(variable_name="XForm path", path='bananas')
         msg = "XForm path does not correspond to a file." + \
               "\nPlease check the path and try again."
         expected = {'title': 'File Error', 'message': msg}
-        msgbox.showerror.assert_called_with(**expected)
+        msg_box.assert_called_with(**expected)
 
     def test_validate_path_none_xform(self):
         """Should open an Input Error message box."""
-        msgbox = messagebox
-        msgbox.showerror = MagicMock()
-        gui._validate_path(variable_name="XForm path", path=None)
+        with patch('tkinter.messagebox.showerror', MagicMock()) as msg_box:
+            gui._validate_path(variable_name="XForm path", path=None)
         msg = "XForm path is empty. Please either:\n- Enter the path, or" + \
               "\n- Select the path using the 'Browse...' button."
         expected = {'title': 'Input Error', 'message': msg}
-        msgbox.showerror.assert_called_with(**expected)
+        msg_box.assert_called_with(**expected)
 
     def test_run_generate_xform_all_valid_args(self):
         """Should return success run header message."""
@@ -166,30 +165,19 @@ class TestGui(unittest.TestCase):
         """Should return success run header message."""
         expected = "Generate Images was run. Output below."
         xlsform_path = self.fixture_path_xlsform
-        class_path = 'odk_tools.question_images.images.Images.{0}'
-        patch_save_path = class_path.format('_save_image')
-        patch_dir_path = class_path.format('_create_output_directory')
-        with patch(patch_save_path, MagicMock()):
-            with patch(patch_dir_path, MagicMock(
-                    return_value='my_xform-media')):
-                header, _ = gui._run_generate_images(
-                    xlsform_path=xlsform_path)
+        patch_write = 'odk_tools.question_images.images.write_images'
+        with patch(patch_write, MagicMock()):
+            header, _ = gui._run_generate_images(xlsform_path=xlsform_path)
         self.assertEqual(expected, header)
 
     def test_run_generate_images_invalid_xform(self):
         """Should return error header message."""
         expected = "Generate Images not run: invalid arguments."
         xlsform_path = 'not a valid path'
-        msgbox = messagebox
-        msgbox.showerror = MagicMock()
-        class_path = 'odk_tools.question_images.images.Images.{0}'
-        patch_save_path = class_path.format('_save_image')
-        patch_dir_path = class_path.format('_create_output_directory')
-        with patch(patch_save_path, MagicMock()):
-            with patch(patch_dir_path, MagicMock(
-                    return_value='my_xform-media')):
-                header, _ = gui._run_generate_images(
-                    xlsform_path=xlsform_path)
+        messagebox.showerror = MagicMock()
+        patch_write = 'odk_tools.question_images.images.write_images'
+        with patch(patch_write, MagicMock()):
+            header, _ = gui._run_generate_images(xlsform_path=xlsform_path)
         self.assertEqual(expected, header)
 
     def test_run_generate_images_captures_logs(self):
@@ -206,6 +194,63 @@ class TestGui(unittest.TestCase):
         self.assertEqual(133, len(content))
         self.assertTrue(content[0].startswith("Text outside image margins."))
 
+    def test_is_7zip_callable_with_installed(self):
+        """Should locate 7zip."""
+        popen_kw = gui._popen_kwargs()
+        observed, _ = gui._is_7zip_callable(popen_kwargs=popen_kw)
+        self.assertTrue(observed)
+
+    def test_run_generate_editions_all_valid_args(self):
+        """Should return success run header message."""
+        expected = "Generate Editions was run. Output below."
+        xform_path = self.fixture_path_xform
+        sitelangs_path = self.fixture_path_sitelangs
+        patch_write = 'odk_tools.language_editions.editions.write_editions'
+        with patch(patch_write, MagicMock()):
+            header, _ = gui._run_generate_editions(
+                xform_path=xform_path, sitelangs_path=sitelangs_path,
+                z7zip_path='')
+        self.assertEqual(expected, header)
+
+    def test_run_generate_editions_invalid_xform(self):
+        """Should return error header message."""
+        expected = "Generate Editions not run: invalid arguments."
+        xform_path = "not a valid path"
+        sitelangs_path = self.fixture_path_sitelangs
+        messagebox.showerror = MagicMock()
+        patch_write = 'odk_tools.language_editions.editions.write_editions'
+        with patch(patch_write, MagicMock()):
+            header, _ = gui._run_generate_editions(
+                xform_path=xform_path, sitelangs_path=sitelangs_path,
+                z7zip_path='')
+        self.assertEqual(expected, header)
+
+    def test_run_generate_editions_invalid_sitelangs(self):
+        """Should return error header message."""
+        expected = "Generate Editions not run: invalid arguments."
+        xform_path = self.fixture_path_xform
+        sitelangs_path = "not a valid path"
+        messagebox.showerror = MagicMock()
+        patch_write = 'odk_tools.language_editions.editions.write_editions'
+        with patch(patch_write, MagicMock()):
+            header, _ = gui._run_generate_editions(
+                xform_path=xform_path, sitelangs_path=sitelangs_path,
+                z7zip_path='')
+        self.assertEqual(expected, header)
+
+    def test_run_generate_editions_invalid_7zip(self):
+        """Should return error header message."""
+        expected = "Generate Editions not run: invalid arguments."
+        xform_path = self.fixture_path_xform
+        sitelangs_path = self.fixture_path_sitelangs
+        messagebox.showerror = MagicMock()
+        patch_write = 'odk_tools.language_editions.editions.write_editions'
+        with patch(patch_write, MagicMock()):
+            header, _ = gui._run_generate_editions(
+                xform_path=xform_path, sitelangs_path=sitelangs_path,
+                z7zip_path='not a valid path')
+        self.assertEqual(expected, header)
+
 
 class TestCapturingHandler(unittest.TestCase):
     """Tests for the CapturingHandler class."""
@@ -220,4 +265,3 @@ class TestCapturingHandler(unittest.TestCase):
         test_logger.info(messages[1])
         test_logger.removeHandler(hdlr=capture)
         self.assertEqual(capture.watcher.output, messages)
-
