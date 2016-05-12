@@ -30,12 +30,18 @@ class TestImages(_TestImagesBase):
 
     def test_write_multi_language(self):
         """Should create expected number of images for multi-language form."""
-        self.clean_test_output_folder = True
         self.test_output_folder = 'Q1309_BEHAVE-media'
         xlsform = 'Q1309_BEHAVE.xlsx'
-        write_images(xlsform_path=xlsform)
-        output_files = os.listdir(self.test_output_folder)
-        self.assertEqual(495, len(output_files))
+        class_path = 'odk_tools.question_images.images.Images.{0}'
+        patch_save_path = class_path.format('_save_image')
+        patch_dir_path = class_path.format('_create_output_directory')
+        with patch(patch_save_path, MagicMock()) as patch_save:
+            with patch(patch_dir_path, MagicMock(
+                    return_value=self.test_output_folder)):
+                write_images(xlsform_path=xlsform)
+        expected = 495
+        observed = patch_save.call_count
+        self.assertEqual(expected, observed)
 
     def test_write_single_language(self):
         """Should create expected number of images for single language form."""

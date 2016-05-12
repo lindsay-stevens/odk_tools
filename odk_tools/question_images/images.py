@@ -36,8 +36,21 @@ class Images:
             settings=settings, output_path=output_path,
             xlsform_path=xlsform_path)
         for image, image_path in image_generator:
-            image.save(image_path, 'PNG', dpi=[300, 300])
-            image.close()
+            Images._save_image(image=image, image_path=image_path)
+
+    @staticmethod
+    def _save_image(image, image_path):
+        """
+        Save the image to the provided path.
+
+        Separate function for easier mock-out.
+
+        Parameters.
+        :param image: PIL.Image. Image object to save.
+        :param image_path: str. Path to save image to.
+        """
+        image.save(image_path, 'PNG', dpi=[300, 300])
+        image.close()
 
     @staticmethod
     def _prepare_base_image(settings, xlsform_path):
