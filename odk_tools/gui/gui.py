@@ -6,6 +6,43 @@ import os
 import sys
 import subprocess
 from pyxform.xls2xform import xls2xform_convert
+from odk_tools.question_images import images
+import logging
+import collections
+
+
+class _CapturingHandler(logging.Handler):
+    """
+    A logging handler capturing all (raw and formatted) logging output.
+
+    Largely the same as doing "from unittest.case import _CapturingHandler",
+    but copied here because it is a simple class, and the original has an
+    underscore prefix so it might change unexpectedly.
+
+    Usage:
+    Here's how to attach it to a logger, get the logs, and then detach it.
+
+    my_logger = logging.getLogger(name="logger_name")
+    capture_handler = _CapturingHandler(logger=my_logger)
+    log_messages = capture_handler.watcher.output
+    log_records = capture_handler.watcher.records
+    my_logger.removeHandler(hdlr=capture_handler)
+    """
+
+    def __init__(self, logger):
+        logging.Handler.__init__(self)
+        _LoggingWatcher = collections.namedtuple(
+            "_LoggingWatcher", ["records", "output"])
+        self.watcher = _LoggingWatcher([], [])
+        logger.addHandler(self)
+
+    def flush(self):
+        pass
+
+    def emit(self, record):
+        self.watcher.records.append(record)
+        msg = self.format(record)
+        self.watcher.output.append(msg)
 
 
 class ODKToolsGui:
@@ -42,6 +79,7 @@ class ODKToolsGui:
             master=master,
             label_text="Generate Images", label_width=label_width,
             command=lambda: ODKToolsGui.generate_images(
+                master=master,
                 xlsform_path=xlsform_path))
 
         master.sep1 = ttk.Separator(master=master).grid(sticky="we")
@@ -254,7 +292,12 @@ class ODKToolsGui:
     @staticmethod
     def generate_xform(master, xlsform_path, xform_path):
         """
-        Run the XForm validation, clear the textbox and insert the output.
+        Run the XForm generator, clear the textbox and insert the output.
+
+        Parameters.
+        :param master: tkinter.Frame. Frame where master.output.textbox is.
+        :param xlsform_path: str. Path to XLSForm to convert.
+        :param xform_path: str. Path for XForm XML output.
         """
         header, content = ODKToolsGui._run_generate_xform(
             xlsform_path=xlsform_path.get(),
@@ -264,10 +307,49 @@ class ODKToolsGui:
         master.output.textbox.insert(tkinter.END, text)
 
     @staticmethod
-    def generate_images(xlsform_path):
-        xlsform = xlsform_path.get()
-        valid_xlsform = ODKToolsGui._validate_path("XLSForm path", xlsform)
-        # TODO
+    def _run_generate_images(xlsform_path):
+        """
+        Return image generation result, including any stderr / stdout content.
+
+        Calls write_images using the supplied xlsform_path.
+        - XLSForm path is always required.
+
+        If the paths is not resolved, error message boxes are opened to
+        indicate this clearly to the user.
+
+        Parameters.
+        :param xlsform_path: str. Path to XLSForm to convert.
+        :return: tuple (output header message, message content)
+        """
+        valid_xlsform = ODKToolsGui._validate_path("XLSForm path", xlsform_path)
+
+        if valid_xlsform:
+            unquoted_xlsform = xlsform_path.strip('"')
+            header = "Generate Images was run. Output below."
+            images_log = logging.getLogger('odk_tools.question_images.images')
+            log_capture = _CapturingHandler(logger=images_log)
+            content = log_capture.watcher.output
+            images.write_images(xlsform_path=unquoted_xlsform)
+        else:
+            header = "Generate Images not run: invalid arguments."
+            content = None
+
+        return header, content
+
+    @staticmethod
+    def generate_images(master, xlsform_path):
+        """
+        Run the images generator, clear the textbox and insert the output.
+
+        Parameters.
+        :param master: tkinter.Frame. Frame where master.output.textbox is.
+        :param xlsform_path: str. Path to XLSForm to convert.
+        """
+        header, content = ODKToolsGui._run_generate_images(
+            xlsform_path=xlsform_path.get())
+        text = ODKToolsGui._format_output(header=header, content=content)
+        master.output.textbox.delete("1.0", tkinter.END)
+        master.output.textbox.insert(tkinter.END, text)
 
     @staticmethod
     def _current_directory():

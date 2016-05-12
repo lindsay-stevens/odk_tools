@@ -1,8 +1,10 @@
 import unittest
 import os
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from tkinter import messagebox
 from odk_tools.gui.gui import ODKToolsGui as gui
+from odk_tools.gui.gui import _CapturingHandler
+import logging
 
 
 class TestGui(unittest.TestCase):
@@ -13,6 +15,8 @@ class TestGui(unittest.TestCase):
         cwd = os.path.dirname(__file__)
         cls.fixture_path_xform = os.path.join(cwd, "R1309 BEHAVE.xml")
         cls.fixture_path_xlsform = os.path.join(cwd, "Q1302_BEHAVE.xlsx")
+        cls.fixture_path_xlsform_huge_fonts = os.path.join(
+            cwd, "R1309_BEHAVE_huge_fonts.xlsx")
 
     def setUp(self):
         self.remove_after_done = None
@@ -157,3 +161,63 @@ class TestGui(unittest.TestCase):
         expected = self.fixture_path_xlsform.replace(".xlsx", ".xml")
         observed = gui._get_same_xlsform_name(xlsform_path=xlsform_path)
         self.assertEqual(expected, observed)
+
+    def test_run_generate_images_all_valid_args(self):
+        """Should return success run header message."""
+        expected = "Generate Images was run. Output below."
+        xlsform_path = self.fixture_path_xlsform
+        class_path = 'odk_tools.question_images.images.Images.{0}'
+        patch_save_path = class_path.format('_save_image')
+        patch_dir_path = class_path.format('_create_output_directory')
+        with patch(patch_save_path, MagicMock()):
+            with patch(patch_dir_path, MagicMock(
+                    return_value='my_xform-media')):
+                header, _ = gui._run_generate_images(
+                    xlsform_path=xlsform_path)
+        self.assertEqual(expected, header)
+
+    def test_run_generate_images_invalid_xform(self):
+        """Should return error header message."""
+        expected = "Generate Images not run: invalid arguments."
+        xlsform_path = 'not a valid path'
+        msgbox = messagebox
+        msgbox.showerror = MagicMock()
+        class_path = 'odk_tools.question_images.images.Images.{0}'
+        patch_save_path = class_path.format('_save_image')
+        patch_dir_path = class_path.format('_create_output_directory')
+        with patch(patch_save_path, MagicMock()):
+            with patch(patch_dir_path, MagicMock(
+                    return_value='my_xform-media')):
+                header, _ = gui._run_generate_images(
+                    xlsform_path=xlsform_path)
+        self.assertEqual(expected, header)
+
+    def test_run_generate_images_captures_logs(self):
+        """Should have logs from generate images with oversized text."""
+        xlsform_path = self.fixture_path_xlsform_huge_fonts
+        class_path = 'odk_tools.question_images.images.Images.{0}'
+        patch_save_path = class_path.format('_save_image')
+        patch_dir_path = class_path.format('_create_output_directory')
+        with patch(patch_save_path, MagicMock()):
+            with patch(patch_dir_path, MagicMock(
+                    return_value='my_xform-media')):
+                _, content = gui._run_generate_images(
+                    xlsform_path=xlsform_path)
+        self.assertEqual(133, len(content))
+        self.assertTrue(content[0].startswith("Text outside image margins."))
+
+
+class TestCapturingHandler(unittest.TestCase):
+    """Tests for the CapturingHandler class."""
+
+    def test_capture_handler_output(self):
+        """Should return list of log messages."""
+        test_logger = logging.getLogger("my_test_logger")
+        test_logger.setLevel("INFO")
+        capture = _CapturingHandler(logger=test_logger)
+        messages = ['first message', 'this is a second message']
+        test_logger.warn(messages[0])
+        test_logger.info(messages[1])
+        test_logger.removeHandler(hdlr=capture)
+        self.assertEqual(capture.watcher.output, messages)
+
