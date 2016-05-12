@@ -4,8 +4,9 @@ import xlrd
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from odk_tools.question_images.images import Images, ImageContent, \
-    ImageSettings, write_images, _create_parser, logger
+    ImageSettings, write_images, _create_parser
 from PIL import Image
+import logging
 
 
 class _TestImagesBase(TestCase):
@@ -13,9 +14,11 @@ class _TestImagesBase(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.xlsform1 = 'Q1302_BEHAVE.xlsx'
-        cls.test_output_folder = 'Q1302_BEHAVE-media'
+        cls.cwd = os.path.dirname(__file__)
+        cls.xlsform1 = os.path.join(cls.cwd, 'Q1302_BEHAVE.xlsx')
+        cls.test_output_folder = os.path.join(cls.cwd, 'Q1302_BEHAVE-media')
         cls.xlsform1_workbook = xlrd.open_workbook(filename=cls.xlsform1)
+        cls.xlsform2 = os.path.join(cls.cwd, 'Q1309_BEHAVE.xlsx')
 
     def setUp(self):
         self.clean_test_output_folder = False
@@ -31,7 +34,7 @@ class TestImages(_TestImagesBase):
     def test_write_multi_language(self):
         """Should create expected number of images for multi-language form."""
         self.test_output_folder = 'Q1309_BEHAVE-media'
-        xlsform = 'Q1309_BEHAVE.xlsx'
+        xlsform = self.xlsform2
         class_path = 'odk_tools.question_images.images.Images.{0}'
         patch_save_path = class_path.format('_save_image')
         patch_dir_path = class_path.format('_create_output_directory')
@@ -72,16 +75,16 @@ class TestImages(_TestImagesBase):
 
     def test_open_image_relative_path(self):
         """Should return Image if the path is relative to the xlsform."""
+        xlsform_path = os.path.join(self.cwd, "reference_images/xlsform.xlsx")
         image_path = "open_image.png"
-        xlsform_path = "reference_images/xlsform.xlsx"
         observed = Images._open_image(image_path=image_path,
                                       xlsform_path=xlsform_path)
         self.assertEqual('PNG', observed.format)
 
     def test_open_image_absolute_path(self):
         """Should return Image if the path is absolute."""
-        image_path = os.path.join(os.path.dirname(__file__),
-                                  "reference_images", "open_image.png")
+        image_path = os.path.join(
+            self.cwd, "reference_images", "open_image.png")
         xlsform_path = "xlsform.xlsx"
         observed = Images._open_image(image_path=image_path,
                                       xlsform_path=xlsform_path)
@@ -112,8 +115,7 @@ class TestImagesImage(_TestImagesBase):
     def test_create_output_directory_with_spaces_unc(self):
         """Should create a folder with the expected name."""
         self.clean_test_output_folder = True
-        current_folder = os.path.dirname(__file__)
-        test_folder = os.path.join(current_folder, 'folder with spaces')
+        test_folder = os.path.join(self.cwd, 'folder with spaces')
         unc_path = '\\\\localhost\\c$' + test_folder[2:]
         self.test_output_folder = test_folder
         test_file_path = unc_path + '\\my_xlsform.xlsx'
@@ -131,14 +133,16 @@ class TestImagesImage(_TestImagesBase):
 
     def test_prepare_base_image_with_logo(self):
         """Should return a base image with a logo pasted onto it."""
+        logo = os.path.join(self.cwd, 'nest_images/stopc-logo.png')
         settings = {'image_width': 500, 'image_height': 500,
                     'image_color': 'white',
-                    'logo_image_path': 'nest_images/stopc-logo.png',
+                    'logo_image_path': logo,
                     'logo_image_pixels_before': 10,
                     'logo_image_height': 40}
         observed, _ = Images._prepare_base_image(settings=settings,
                                                  xlsform_path="")
-        expected = Image.open('reference_images/base_logo.png')
+        base_logo = os.path.join(self.cwd, 'reference_images/base_logo.png')
+        expected = Image.open(base_logo)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
         expected.close()
 
@@ -173,16 +177,18 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         settings['image_content'] = [x for x in settings['image_content']
                                      if x['file_name_column'] == 'da2d10ye']
         self.settings = settings
+        self.ref_images = os.path.join(self.cwd, "reference_images")
 
     def test_all_content_types(self):
         """Should return image with label, hint and nested image."""
         settings = self.settings
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings, xlsform_path="")
+            settings=settings, xlsform_path=self.xlsform1)
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path='', xlsform_path=""))[0]
-        expected = Image.open('reference_images/da2d10ye_english_all.png')
+            settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
+        ref_image = os.path.join(self.ref_images, "da2d10ye_english_all.png")
+        expected = Image.open(ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
     def test_label_only(self):
@@ -191,11 +197,12 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         settings['image_content'][0]['text_hint_column'] = ''
         settings['image_content'][0]['nest_image_column'] = ''
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings, xlsform_path="")
+            settings=settings, xlsform_path=self.xlsform1)
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path='', xlsform_path=""))[0]
-        expected = Image.open('reference_images/da2d10ye_english_label.png')
+            settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
+        ref_image = os.path.join(self.ref_images, "da2d10ye_english_label.png")
+        expected = Image.open(ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
     def test_label_and_hint_only(self):
@@ -203,11 +210,12 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         settings = self.settings
         settings['image_content'][0]['nest_image_column'] = ''
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings, xlsform_path="")
+            settings=settings, xlsform_path=self.xlsform1)
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path='', xlsform_path=""))[0]
-        ref_image = 'reference_images/da2d10ye_english_label_hint.png'
+            settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
+        ref_image = os.path.join(self.ref_images,
+                                 "da2d10ye_english_label_hint.png")
         expected = Image.open(ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
@@ -216,11 +224,12 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         settings = self.settings
         settings['image_content'][0]['text_hint_column'] = ''
         base_image, pixels_from_top = Images._prepare_base_image(
-            settings=settings, xlsform_path="")
+            settings=settings, xlsform_path=self.xlsform1)
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
-            settings=settings, output_path='', xlsform_path=""))[0]
-        ref_image = 'reference_images/da2d10ye_english_label_image.png'
+            settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
+        ref_image = os.path.join(self.ref_images,
+                                 "da2d10ye_english_label_image.png")
         expected = Image.open(ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
@@ -334,11 +343,11 @@ class TestImagesDrawText(_TestImagesBase):
         text = ['This is some text', 'that is for a question']
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        with patch('logging.Logger.warn', MagicMock()):
+        with patch('logging.Logger.warn', MagicMock()) as log_warn:
             drawn_image, vertical = Images._draw_text(
                 base_image=base_image, pixels_from_top=0, pixels_before=10,
                 pixels_between=5, **font_kwargs, text=text, image_name='img')
-            self.assertFalse(logger.warn.called)
+        self.assertFalse(log_warn.called)
         self.assertNotEqual(list(original_image.getdata()),
                             list(drawn_image.getdata()))
         self.assertEqual(79, vertical)
@@ -352,7 +361,8 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        with self.assertLogs(logger=logger, level="WARN") as logs:
+        image_log = logging.getLogger('odk_tools.question_images.images')
+        with self.assertLogs(logger=image_log, level="WARN") as logs:
             Images._draw_text(
                 base_image=base_image, pixels_from_top=0, pixels_before=10,
                 pixels_between=5, **font_kwargs, text=text, image_name="img")
@@ -370,7 +380,8 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        with self.assertLogs(logger=logger, level="WARN") as logs:
+        image_log = logging.getLogger('odk_tools.question_images.images')
+        with self.assertLogs(logger=image_log, level="WARN") as logs:
             Images._draw_text(
                 base_image=base_image, pixels_from_top=0, pixels_before=10,
                 pixels_between=5, **font_kwargs, text=text, image_name="img")
@@ -388,7 +399,8 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        with self.assertLogs(logger=logger, level="WARN") as logs:
+        image_log = logging.getLogger('odk_tools.question_images.images')
+        with self.assertLogs(logger=image_log, level="WARN") as logs:
             Images._draw_text(
                 base_image=base_image, pixels_from_top=0, pixels_before=10,
                 pixels_between=5, **font_kwargs, text=text, image_name="img")
@@ -407,7 +419,8 @@ class TestImagesDrawText(_TestImagesBase):
                     'text_label_font_color': 'red'}
         font_kwargs = ImageSettings._get_font_kwargs(
             settings=settings, label_or_hint='label')
-        with self.assertLogs(logger=logger, level="WARN") as logs:
+        image_log = logging.getLogger('odk_tools.question_images.images')
+        with self.assertLogs(logger=image_log, level="WARN") as logs:
             Images._draw_text(
                 base_image=base_image, pixels_from_top=0, pixels_before=10,
                 pixels_between=5, **font_kwargs, text=text, image_name="img")
