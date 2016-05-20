@@ -528,7 +528,13 @@ def write_images(xlsform_path):
     for index, language in settings.items():
         language = ImageContent.read(
             xlsform_workbook=xlsform_workbook, settings=language)
-        Images.write(xlsform_path=xlsform_path, settings=language)
+        try:
+            Images.write(xlsform_path=xlsform_path, settings=language)
+        except FileNotFoundError as fe:
+            logger.error(fe)
+        else:
+            msg = "Wrote images for language: {0}.".format(language['language'])
+            logger.info(msg=msg)
 
 
 def _create_parser():
