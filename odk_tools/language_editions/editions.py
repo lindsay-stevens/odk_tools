@@ -5,13 +5,12 @@ import shutil
 import subprocess
 import concurrent.futures
 import logging
-import sys
 from lxml import etree
 from xlrd import open_workbook
 
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-logger = logging.getLogger('odk_tools.language_editions')
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class Editions(object):
@@ -262,8 +261,29 @@ class Editions(object):
         Editions._clean_up_empty_site_dirs(site_paths)
 
 
-if __name__ == '__main__':
-    # grab the command line arguments
+def write_editions(xform_path, site_languages, z7zip_path, concurrently=False):
+    """
+    Generate zip archives containing site-specific editions of an XForm.
+
+    Parameters.
+    :param xform_path: str. Path to XForm file. It is assumed that the
+        "xform-media" folder is in the same directory as the Xform.
+    :param site_languages: str. Path to XLSX file specifying the sites to
+        create editions for, and which languages each should get.
+    :param z7zip_path: str. Path to 7zip executable.
+    :param concurrently: bool. Execute zip jobs concurrently, instead of
+        sequentially. If running the script as a pyinstaller single exe,
+        only sequential mode can work.
+    """
+    Editions.language_editions(
+        xform_path=xform_path, site_languages=site_languages,
+        z7zip_path=z7zip_path, concurrently=concurrently)
+
+
+def _create_parser():
+    """
+    Parse command line arguments.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "xform",
@@ -272,15 +292,27 @@ if __name__ == '__main__':
         "sitelangs",
         help="Path to xlsx file with sites and languages specified.")
     parser.add_argument(
-        "--zipexe", dest='zipexe',
+        "--zipexe", dest='zipexe', default="C:\\Program Files\\7-Zip\\7z.exe",
         help="Path to 7zip executable, if not C:\\Program Files\\7-Zip\\7z.exe")
     parser.add_argument(
-        "--concurrently", dest='concurrently', action='store_true',
+        "--concurrently", dest='concurrently',
+        action='store_true', default=True,
         help="Run the zip jobs concurrently (up to 4 at a time), instead of"
              "sequentially. If running from a pyinstaller single exe, "
              "only sequential mode can work.")
-    parser.set_defaults(concurrently=False,
-                        zipexe="C:\\Program Files\\7-Zip\\7z.exe")
+    return parser
+
+
+def main_cli():
+    """
+    Collect script arguments from stdin and run language_editions.
+    """
+    parser = _create_parser()
     args = parser.parse_args()
-    Editions.language_editions(args.xform, args.sitelangs, args.zipexe,
-                               args.concurrently)
+    logger.addHandler(logging.StreamHandler())
+    write_editions(xform_path=args.xform, site_languages=args.sitelangs,
+                   z7zip_path=args.zipexe, concurrently=args.concurrently)
+
+
+if __name__ == '__main__':
+    main_cli()

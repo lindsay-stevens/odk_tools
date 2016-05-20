@@ -5,22 +5,21 @@ import glob
 import itertools
 import zipfile
 from lxml import etree
-from odk_tools.language_editions.editions import Editions
+from odk_tools.language_editions.editions import Editions, _create_parser
 
 
 class TestEditions(unittest.TestCase):
-    # TODO: update tests to use question_images so *.png files aren't in git.
-    # Interim fix: exclude .png from MANIFEST.in.
     # TODO: fix bug related to 7zip with paths including mapped drives.
     #    e.g. '\\SVR-NAS\Public\VHCRP...' is OK, 'P:\VHCRP\...' is not OK.
 
     def setUp(self):
-        self.xform1 = 'Q1309_BEHAVE.xml'
+        cwd = os.path.dirname(__file__)
+        self.xform1 = os.path.join(cwd, 'Q1309_BEHAVE.xml')
         self.document1 = etree.parse(self.xform1)
-        self.xform2 = 'R1309_BEHAVE.xml'
+        self.xform2 = os.path.join(cwd, 'R1309_BEHAVE.xml')
         self.document2 = etree.parse(self.xform2)
-        self.languages = 'site_languages.xlsx'
-        self.languages_spaces = 'site_languages_spaces.xlsx'
+        self.languages = os.path.join(cwd, 'site_languages.xlsx')
+        self.languages_spaces = os.path.join(cwd, 'site_languages_spaces.xlsx')
         self.z7zip_path = 'C:/Program Files/7-Zip/7z.exe'
         self.test_output_path = None
 
@@ -53,11 +52,11 @@ class TestEditions(unittest.TestCase):
         site_code = '61200'
 
         with self.assertLogs(
-                'odk_tools.language_editions', level='INFO') as logs:
+                'odk_tools.language_editions.editions', level='INFO') as logs:
             Editions._add_site_to_default_sid(doc, ns, site_code)
 
         expected_log = ''.join([
-            'INFO:odk_tools.language_editions:Add to sid. ',
+            'INFO:odk_tools.language_editions.editions:Add to sid. ',
             'Site code: 61200, SIDs found: 0, Appended: False'])
         self.assertEqual(logs.output[0], expected_log)
 
@@ -251,3 +250,30 @@ class TestEditions(unittest.TestCase):
         self.assertEqual(expected, observed)
 
         shutil.rmtree('editions', ignore_errors=True)
+
+    def test_create_parser_without_args(self):
+        """Should exit when no args provided."""
+        with self.assertRaises(SystemExit):
+            _create_parser().parse_args([])
+
+    def test_create_parser_with_required_args(self):
+        """Should parse the provided arguments."""
+        xform = 'Q1302_BEHAVE.xml'
+        sitelangs = 'site_languages.xlsx'
+        args_list = [xform, sitelangs]
+        args = _create_parser().parse_args(args_list)
+        self.assertEqual(xform, args.xform)
+        self.assertEqual(sitelangs, args.sitelangs)
+
+    def test_create_parser_with_all_args(self):
+        """Should parse the provided arguments."""
+        xform = 'Q1302_BEHAVE.xml'
+        sitelangs = 'site_languages.xlsx'
+        zipexe = 'C:\\Program Files\\7-Zip\\7z.exe'
+        concurrently = '--concurrently'
+        args_list = ['--zipexe=' + zipexe, concurrently, xform, sitelangs]
+        args = _create_parser().parse_args(args_list)
+        self.assertEqual(xform, args.xform)
+        self.assertEqual(sitelangs, args.sitelangs)
+        self.assertEqual(zipexe, args.zipexe)
+        self.assertEqual(True, args.concurrently)
