@@ -503,7 +503,7 @@ class ODKToolsGui:
         return found, path
 
     @staticmethod
-    def _run_generate_editions(xform_path, sitelangs_path, z7zip_path):
+    def _run_generate_editions(xform_path, sitelangs_path, z7zip_path=''):
         """
         Return edition generation result, including any stderr / stdout content.
 
@@ -532,6 +532,7 @@ class ODKToolsGui:
             header = "Generate Editions was run. Output below."
             editions_log = logging.getLogger(
                 'odk_tools.language_editions.editions')
+            editions_log.setLevel('DEBUG')
             log_capture = _CapturingHandler(logger=editions_log)
             content = log_capture.watcher.output
             editions.write_editions(xform_path=unquoted_xform,

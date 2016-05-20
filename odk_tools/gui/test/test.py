@@ -1,5 +1,6 @@
 import unittest
 import os
+import shutil
 from unittest.mock import MagicMock, patch
 from tkinter import messagebox
 from odk_tools.gui.gui import ODKToolsGui as gui
@@ -12,19 +13,22 @@ class TestGui(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cwd = os.path.dirname(__file__)
-        cls.fixture_path_xform = os.path.join(cwd, "R1309 BEHAVE.xml")
-        cls.fixture_path_xlsform = os.path.join(cwd, "Q1302_BEHAVE.xlsx")
+        cls.cwd = os.path.dirname(__file__)
+        cls.fixture_path_xform = os.path.join(cls.cwd, "R1309 BEHAVE.xml")
+        cls.fixture_path_xlsform = os.path.join(cls.cwd, "Q1302_BEHAVE.xlsx")
         cls.fixture_path_xlsform_huge_fonts = os.path.join(
-            cwd, "R1309_BEHAVE_huge_fonts.xlsx")
-        cls.fixture_path_sitelangs = os.path.join(cwd, "site_languages.xlsx")
+            cls.cwd, "R1309_BEHAVE_huge_fonts.xlsx")
+        cls.fixture_path_sitelangs = os.path.join(
+            cls.cwd, "site_languages.xlsx")
+        cls.fixture_path_sitelangs_single = os.path.join(
+            cls.cwd, "site_languages_single.xlsx")
 
     def setUp(self):
-        self.remove_after_done = None
+        self.remove_after_done = ''
 
     def tearDown(self):
-        if self.remove_after_done is not None:
-            os.remove(self.remove_after_done)
+        if self.remove_after_done != '':
+            shutil.rmtree(self.remove_after_done, ignore_errors=True)
 
     @unittest.skipIf(os.environ.get('JAVA_HOME') is None, "JAVA_HOME not set.")
     def test_is_java_callable_with_java_home_set(self):
@@ -250,6 +254,18 @@ class TestGui(unittest.TestCase):
                 xform_path=xform_path, sitelangs_path=sitelangs_path,
                 z7zip_path='not a valid path')
         self.assertEqual(expected, header)
+
+    def test_run_generate_editions_captures_logs(self):
+        """Should have logs from generate editions."""
+        self.remove_after_done = os.path.join(self.cwd, "editions")
+        sitelangs = self.fixture_path_sitelangs_single
+        xform = self.fixture_path_xform
+        _, content = gui._run_generate_editions(
+            xform_path=xform, sitelangs_path=sitelangs)
+        self.assertEqual(7, len(content))
+        self.assertEqual(
+            content[0],
+            "Preparing files for site: 64001, languages: ['english']")
 
 
 class TestCapturingHandler(unittest.TestCase):
