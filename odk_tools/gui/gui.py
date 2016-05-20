@@ -62,9 +62,9 @@ class ODKToolsGui:
         label_width = 20
         textbox_width = 85
         output_height = 25
-        xlsx_browse = {'filetypes': (('Excel XLSX Spreadsheet File', '.xlsx'),)}
+        xlsx_browse = {'filetypes': (('Excel Spreadsheet File', '.xlsx'),)}
         xml_browse = {'filetypes': (('XForm XML File', '.xml'),)}
-        exe_browse = {'filetypes': (('Java Exe File', '.exe'),)}
+        exe_browse = {'filetypes': (('Exe File', '.exe'),)}
         jar_browse = {'filetypes': (('Java Jar File', '.jar'),)}
 
         font = ('Arial', 8)
@@ -125,7 +125,7 @@ class ODKToolsGui:
         master.xform_sl_path, xform_sl_path = ODKToolsGui.build_path_frame(
             master=master,
             label_text="* XForm path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xlsx_browse)
+            textbox_width=textbox_width, browser_kw=xml_browse)
         master.sitelangs_path, sitelangs_path = ODKToolsGui.build_path_frame(
             master=master,
             label_text="* Site Languages path", label_width=label_width,
