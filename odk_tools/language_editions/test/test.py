@@ -11,18 +11,19 @@ from odk_tools.language_editions.editions import Editions, _create_parser
 class TestEditions(unittest.TestCase):
 
     def setUp(self):
-        cwd = os.path.dirname(__file__)
-        self.xform1 = os.path.join(cwd, 'Q1309_BEHAVE.xml')
+        self.cwd = os.path.dirname(__file__)
+        self.xform1 = os.path.join(self.cwd, 'Q1309_BEHAVE.xml')
         self.document1 = etree.parse(self.xform1)
-        self.xform2 = os.path.join(cwd, 'R1309_BEHAVE.xml')
+        self.xform2 = os.path.join(self.cwd, 'R1309_BEHAVE.xml')
         self.document2 = etree.parse(self.xform2)
-        self.languages = os.path.join(cwd, 'site_languages.xlsx')
-        self.languages_spaces = os.path.join(cwd, 'site_languages_spaces.xlsx')
+        self.languages = os.path.join(self.cwd, 'site_languages.xlsx')
+        self.languages_spaces = os.path.join(
+            self.cwd, 'site_languages spaces.xlsx')
         self.z7zip_path = 'C:/Program Files/7-Zip/7z.exe'
-        self.test_output_path = None
+        self.test_output_path = ''
 
     def tearDown(self):
-        if self.test_output_path is not None:
+        if self.test_output_path != '':
             shutil.rmtree(self.test_output_path, ignore_errors=True)
 
     def test_map_xf_to_none_namespace(self):
@@ -80,7 +81,7 @@ class TestEditions(unittest.TestCase):
         """Should result in mapping of site codes to language lists."""
         langs = self.languages
         parsed = Editions._read_site_languages(langs)
-        self.assertEqual(parsed['61212'], ['english'])
+        self.assertEqual(parsed['61221'], ['english'])
         self.assertEqual(parsed['11101'], ['english', 'spanish'])
 
     def test_read_site_language_list_spaces(self):
@@ -94,6 +95,7 @@ class TestEditions(unittest.TestCase):
     def test_create_output_directory(self):
         """Should create a directory tree."""
         parent_path = 'editions_create'
+        self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '12345'
         media_folder = 'Q1309_BEHAVE-media'
@@ -104,18 +106,18 @@ class TestEditions(unittest.TestCase):
         Editions._create_output_directory(parent_path, site_code, media_folder)
         self.assertTrue(os.path.isdir(expected_folder))
 
-        shutil.rmtree(parent_path, ignore_errors=True)
-
     def test_copy_images_for_languages(self):
         """Should copy images for the specified languages."""
-        parent_path = 'editions_copy'
+        parent_path = os.path.join(self.cwd, 'editions_copy')
+        self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '99999'
-        source_media_folder = 'R1309_BEHAVE-media'
+        source_media_folder_name = 'R1309_BEHAVE-media'
+        source_media_folder = os.path.join(self.cwd, source_media_folder_name)
         langs = ['english', 'french']
 
         site_dir, target_media_dir = Editions._create_output_directory(
-            parent_path, site_code, source_media_folder)
+            parent_path, site_code, source_media_folder_name)
 
         find_images = [glob.glob('{0}/*_{1}.png'.format(
             source_media_folder, x)) for x in langs]
@@ -127,8 +129,6 @@ class TestEditions(unittest.TestCase):
 
         self.assertEqual(images_count, copied_images)
 
-        shutil.rmtree(parent_path, ignore_errors=True)
-
     def test_prepare_zip_job(self):
         """Should result in a zip command."""
         observed = Editions._prepare_zip_job('7zip', 'source', 'form', 'site')
@@ -137,8 +137,8 @@ class TestEditions(unittest.TestCase):
 
     def test_execute_zip_jobs_produces_site_zip(self):
         """Should result in a zip file named by site."""
-        curdir = os.path.dirname(__file__)
-        parent_path = os.path.join(curdir, 'editions_zip')
+        parent_path = os.path.join(self.cwd, 'editions_zip')
+        self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '61202'
         form_name = 'Q1309_BEHAVE'
@@ -154,12 +154,10 @@ class TestEditions(unittest.TestCase):
         expected_files = '{0}-{1}.zip'.format(form_name, site_code)
         self.assertEqual([expected_files], observed_files)
 
-        shutil.rmtree(parent_path, ignore_errors=True)
-
     def test_execute_zip_jobs_output_path_with_spaces(self):
         """Should result in a zip file, even if output path has a space."""
-        curdir = os.path.dirname(__file__)
-        parent_path = os.path.join(curdir, 'editions space')
+        parent_path = os.path.join(self.cwd, 'editions space')
+        self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '61202'
         form_name = 'Q1309_BEHAVE'
@@ -175,18 +173,18 @@ class TestEditions(unittest.TestCase):
         expected_files = '{0}-{1}.zip'.format(form_name, site_code)
         self.assertEqual([expected_files], observed_files)
 
-        shutil.rmtree(parent_path, ignore_errors=True)
-
     def test_execute_zip_jobs_zip_contents_correct(self):
         """Should result in a zip file contains expected images & paths."""
-        curdir = os.path.dirname(__file__)
-        parent_path = os.path.join(curdir, 'editions_zip')
+        parent_path = os.path.join(self.cwd, 'editions_zip')
+        self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         self.test_output_path = parent_path
         site_code = '61202'
         form_name = 'Q1309_BEHAVE'
-        expected_zip = '{0}-{1}.zip'.format(form_name, site_code)
-        source_media_folder = 'Q1309_BEHAVE-media'
+        expected_zip = os.path.join(parent_path,
+                                    '{0}-{1}.zip'.format(form_name, site_code))
+        source_media_folder_name = 'Q1309_BEHAVE-media'
+        source_media_folder = os.path.join(self.cwd, source_media_folder_name)
         langs = ['english']
         find_images = [glob.glob('{0}/*_{1}.png'.format(
             source_media_folder, x)) for x in langs]
@@ -212,8 +210,8 @@ class TestEditions(unittest.TestCase):
 
     def test_clean_up_site_dirs(self):
         """Should remove all empty site dirs."""
-        curdir = os.path.dirname(__file__)
-        parent_path = os.path.join(curdir, 'editions_zip')
+        parent_path = os.path.join(self.cwd, 'editions_zip')
+        self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '61310'
         form_name = 'Q1309_BEHAVE'
@@ -233,21 +231,20 @@ class TestEditions(unittest.TestCase):
             x for x in os.listdir(parent_path) if not x.endswith('.zip')]
         self.assertEqual(0, len(post_cleanup))
 
-        shutil.rmtree(parent_path, ignore_errors=True)
-
     def test_language_editions(self):
         """Should process all listed sites into zip files."""
-        shutil.rmtree('editions', ignore_errors=True)
-        xform_path = os.path.realpath(self.xform1)
-        site_langs_path = os.path.realpath('site_languages.xlsx')
+        parent_path = os.path.join(self.cwd, 'editions')
+        self.test_output_path = parent_path
+        shutil.rmtree(parent_path, ignore_errors=True)
+
+        xform_path = self.xform1
+        site_langs_path = self.languages
         z7zip_path = self.z7zip_path
         Editions.language_editions(xform_path, site_langs_path, z7zip_path)
 
-        observed = len(glob.glob('editions/*.zip'))
+        observed = len(glob.glob('{0}/editions/*.zip'.format(self.cwd)))
         expected = len(Editions._read_site_languages(site_langs_path))
         self.assertEqual(expected, observed)
-
-        shutil.rmtree('editions', ignore_errors=True)
 
     def test_create_parser_without_args(self):
         """Should exit when no args provided."""
