@@ -24,11 +24,14 @@ class TestGui(unittest.TestCase):
             cls.cwd, "site_languages_single.xlsx")
 
     def setUp(self):
-        self.remove_after_done = ''
+        self.remove_after_done_dir = ''
+        self.remove_after_done_file = ''
 
     def tearDown(self):
-        if self.remove_after_done != '':
-            shutil.rmtree(self.remove_after_done, ignore_errors=True)
+        if self.remove_after_done_dir != '':
+            shutil.rmtree(self.remove_after_done_dir, ignore_errors=True)
+        if self.remove_after_done_file != '':
+            os.remove(self.remove_after_done_file)
 
     @unittest.skipIf(os.environ.get('JAVA_HOME') is None, "JAVA_HOME not set.")
     def test_is_java_callable_with_java_home_set(self):
@@ -133,7 +136,7 @@ class TestGui(unittest.TestCase):
         expected = "XLS2XForm was run. Output below."
         xlsform_path = self.fixture_path_xlsform
         xform_path = self.fixture_path_xlsform.replace(".xlsx", ".xml")
-        self.remove_after_done = xform_path
+        self.remove_after_done_file = xform_path
         observed, _ = gui._run_generate_xform(
             xlsform_path=xlsform_path, xform_path=xform_path)
         self.assertEqual(expected, observed)
@@ -144,7 +147,7 @@ class TestGui(unittest.TestCase):
         expected = "XLS2XForm was run. Output below."
         xlsform_path = self.fixture_path_xlsform
         xform_path = self.fixture_path_xlsform.replace(".xlsx", ".xml")
-        self.remove_after_done = xform_path
+        self.remove_after_done_file = xform_path
         observed, _ = gui._run_generate_xform(
             xlsform_path=xlsform_path, xform_path='')
         self.assertEqual(expected, observed)
@@ -257,7 +260,7 @@ class TestGui(unittest.TestCase):
 
     def test_run_generate_editions_captures_logs(self):
         """Should have logs from generate editions."""
-        self.remove_after_done = os.path.join(self.cwd, "editions")
+        self.remove_after_done_dir = os.path.join(self.cwd, "editions")
         sitelangs = self.fixture_path_sitelangs_single
         xform = self.fixture_path_xform
         _, content = gui._run_generate_editions(
