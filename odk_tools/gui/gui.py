@@ -87,20 +87,6 @@ class ODKToolsGui:
 
         master.sep0 = ttk.Separator(master=master).grid(sticky="we")
 
-        master.xlsform_path_images, xlsform_path_images = \
-            ODKToolsGui.build_path_frame(
-                master=master,
-                label_text="* XLSForm path", label_width=label_width,
-                textbox_width=textbox_width, browser_kw=xlsx_browse)
-        master.generate_images = ODKToolsGui.build_action_frame(
-            master=master,
-            label_text="Generate Images", label_width=label_width,
-            command=lambda: ODKToolsGui.generate_images(
-                master=master,
-                xlsform_path=xlsform_path_images))
-
-        master.sep1 = ttk.Separator(master=master).grid(sticky="we")
-
         master.java_path, java_path = ODKToolsGui.build_path_frame(
             master=master,
             label_text="Java path", label_width=label_width,
@@ -119,6 +105,20 @@ class ODKToolsGui:
             command=lambda: ODKToolsGui.validate_xform(
                 master=master, java_path=java_path, validate_path=validate_path,
                 xform_path=xform_in_path))
+
+        master.sep1 = ttk.Separator(master=master).grid(sticky="we")
+
+        master.xlsform_path_images, xlsform_path_images = \
+            ODKToolsGui.build_path_frame(
+                master=master,
+                label_text="* XLSForm path", label_width=label_width,
+                textbox_width=textbox_width, browser_kw=xlsx_browse)
+        master.generate_images = ODKToolsGui.build_action_frame(
+            master=master,
+            label_text="Generate Images", label_width=label_width,
+            command=lambda: ODKToolsGui.generate_images(
+                master=master,
+                xlsform_path=xlsform_path_images))
 
         master.sep2 = ttk.Separator(master=master).grid(sticky="we")
 
