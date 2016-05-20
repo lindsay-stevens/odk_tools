@@ -87,6 +87,10 @@ class ODKToolsGui:
 
         master.sep0 = ttk.Separator(master=master).grid(sticky="we")
 
+        master.xform_in_path, xform_in_path = ODKToolsGui.build_path_frame(
+            master=master,
+            label_text="* XForm path", label_width=label_width,
+            textbox_width=textbox_width, browser_kw=xml_browse)
         master.java_path, java_path = ODKToolsGui.build_path_frame(
             master=master,
             label_text="Java path", label_width=label_width,
@@ -95,10 +99,6 @@ class ODKToolsGui:
             master=master,
             label_text="ODK_Validate path", label_width=label_width,
             textbox_width=textbox_width, browser_kw=jar_browse)
-        master.xform_in_path, xform_in_path = ODKToolsGui.build_path_frame(
-            master=master,
-            label_text="* XForm path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xml_browse)
         master.validate_xform = ODKToolsGui.build_action_frame(
             master=master,
             label_text="Validate XForm", label_width=label_width,
