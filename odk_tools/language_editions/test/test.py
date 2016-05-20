@@ -9,8 +9,6 @@ from odk_tools.language_editions.editions import Editions, _create_parser
 
 
 class TestEditions(unittest.TestCase):
-    # TODO: fix bug related to 7zip with paths including mapped drives.
-    #    e.g. '\\SVR-NAS\Public\VHCRP...' is OK, 'P:\VHCRP\...' is not OK.
 
     def setUp(self):
         cwd = os.path.dirname(__file__)
