@@ -178,7 +178,6 @@ class TestEditions(unittest.TestCase):
         parent_path = os.path.join(self.cwd, 'editions_zip')
         self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
-        self.test_output_path = parent_path
         site_code = '61202'
         form_name = 'Q1309_BEHAVE'
         expected_zip = os.path.join(parent_path,
@@ -204,8 +203,10 @@ class TestEditions(unittest.TestCase):
         non_image_contents = [source_media_folder, '{0}.xml'.format(form_name)]
         expected_contents = non_image_contents + images_found
         self.assertEqual(
-            sorted([os.path.realpath(x) for x in expected_contents]),
-            sorted([os.path.realpath(x.filename) for x in zip_items])
+            sorted([os.path.normpath(
+                os.path.join(self.cwd, x)) for x in expected_contents]),
+            sorted([os.path.normpath(
+                os.path.join(self.cwd, x.filename)) for x in zip_items])
         )
 
     def test_clean_up_site_dirs(self):

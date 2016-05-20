@@ -49,7 +49,15 @@ class _CapturingHandler(logging.Handler):
 class ODKToolsGui:
 
     def __init__(self, master=None):
+        """
+        Set up the GUI by creating controls and adding them to the master frame.
 
+        Controls appear in the GUI in the order they were added. Since many of
+        the controls are similar, the repetitive parts of the process are
+        abstracted to helper functions. The remaining functions are for input
+        validation, or wrappers around commands that are run by clicking the
+        button controls.
+        """
         master.title("ODK Tools GUI")
         label_width = 20
         textbox_width = 85
@@ -76,12 +84,20 @@ class ODKToolsGui:
             command=lambda: ODKToolsGui.generate_xform(
                 master=master, xlsform_path=xlsform_path,
                 xform_path=xform_out_path))
+
+        master.sep0 = ttk.Separator(master=master).grid(sticky="we")
+
+        master.xlsform_path_images, xlsform_path_images = \
+            ODKToolsGui.build_path_frame(
+                master=master,
+                label_text="* XLSForm path", label_width=label_width,
+                textbox_width=textbox_width, browser_kw=xlsx_browse)
         master.generate_images = ODKToolsGui.build_action_frame(
             master=master,
             label_text="Generate Images", label_width=label_width,
             command=lambda: ODKToolsGui.generate_images(
                 master=master,
-                xlsform_path=xlsform_path))
+                xlsform_path=xlsform_path_images))
 
         master.sep1 = ttk.Separator(master=master).grid(sticky="we")
 
@@ -148,6 +164,24 @@ class ODKToolsGui:
 
     @staticmethod
     def build_action_frame(master, label_text, label_width, command):
+        """
+        Generate a frame with a button for executing a command.
+
+        The frame contains a grid row, with 3 columns: a label and a button
+        labelled "Run" which executes the command on click.
+
+        The command / function passed in should be a lambda which doesn't
+        return or require any input parameters; in the above layout code the
+        examples bake in a reference to the relevant variable (bound to a
+        control) which is used to run the function.
+
+        Parameters.
+        :param master: tk.Frame. The parent of the generated frame.
+        :param label_text: str. The text to display next to the command button.
+        :param label_width: int. How wide the label should be.
+        :param command: function. What to do when the button is clicked.
+        :return: path frame (tk Frame), path variable (tk StringVar)
+        """
         frame = ttk.Frame(master=master)
         frame.grid(sticky='w')
         frame.rowconfigure(index=0, pad=10, weight=1)
@@ -167,7 +201,8 @@ class ODKToolsGui:
         Generate a frame with controls for collecting a file path.
 
         The frame contains a grid row, with 3 columns: a label, a text box,
-        and a
+        and a button which opens the file explorer which can be used to
+        select the file path visually.
 
         Parameters.
         :param master: tk.Frame. The parent of the generated frame.
@@ -468,6 +503,9 @@ class ODKToolsGui:
 
     @staticmethod
     def _format_output(header, content):
+        """
+        Return the formatted header and content, in this case line separated.
+        """
         return "\n\n".join([header, *content])
 
     @staticmethod
