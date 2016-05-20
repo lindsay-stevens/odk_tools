@@ -333,6 +333,7 @@ class ODKToolsGui:
             unquoted_xlsform = xlsform_path.strip('"')
             header = "Generate Images was run. Output below."
             images_log = logging.getLogger('odk_tools.question_images.images')
+            images_log.setLevel("DEBUG")
             log_capture = _CapturingHandler(logger=images_log)
             content = log_capture.watcher.output
             images.write_images(xlsform_path=unquoted_xlsform)
