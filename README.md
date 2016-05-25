@@ -25,32 +25,6 @@ described in the User Guide, the "examples" folder contains sample input files
 for each of the commands presented in the GUI.
 
 
-## Packaging
-The requirement for packaging is PyInstaller. To convert the documentation into
-Microsoft Word .docx files (or any other desired format), Pandoc is used.
-
-A copy of a recent build of ODK Validate is required. This should be available
-from https://github.com/opendatakit/validate/releases, or a local build could
-be used. The ODK_Validate.jar file should be placed in the "packaging" folder.
-
-To generate the package:
-
-- Open a command prompt in the "packaging" folder, with the virtual environment
-  activated, if applicable.
-- Call PyInstaller with the spec file, e.g.  ```pyinstaller gui_spec.spec```.
-
-This will create a "dist" folder, which will contain a "gui" folder, which
-contains all the necessary files for "gui.exe" to run. It will also copy in the
-"examples" and "doc" folders.
-
-To convert the markdown .md documentation files to Microsoft Word .docx files:
-
-- Open a command prompt in the "doc" folder.
-- Call pandoc with each file, e.g. ```pandoc user_guide_gui.md -o user_guide_gui.docx```
-    + If this doesn't work, pandoc is probably not on the system path. This can
-      be done with ```set PATH=%PATH%;C:\Users\yourname\AppData\Local\Pandoc```.
-
-
 ## Provided Modules
 The following sections are describe the modules provided by this package.
 
@@ -145,3 +119,41 @@ This is a work in progress  / experiment that is intended to generate a MS Word
  / docx document version of a XLSForm. The document could be used as a
 printable paper backup copy of the questionnaire, in case the tablet is lost
 or unavailable.
+
+
+## Packaging
+The requirement for packaging is PyInstaller. To convert the documentation into
+Microsoft Word .docx files (or any other desired format), Pandoc is used.
+
+A copy of a recent build of ODK Validate is required. This should be available
+from https://github.com/opendatakit/validate/releases, or a local build could
+be used. The ODK_Validate.jar file should be placed in the "packaging" folder.
+
+To generate the package:
+
+- Open a command prompt in the "packaging" folder, with the virtual environment
+  activated, if applicable.
+- Call PyInstaller with the spec file, e.g.  ```pyinstaller gui_spec.spec```.
+
+This will create a "dist" folder, which will contain a "gui" folder, which
+contains all the necessary files for "gui.exe" to run. It will also copy in the
+"examples" and "doc" folders.
+
+To convert the markdown .md documentation files to Microsoft Word .docx files:
+
+- Open a command prompt in the "doc" folder.
+- Call pandoc with each file, e.g. ```pandoc user_guide_gui.md -o user_guide_gui.docx```
+    + If this doesn't work, pandoc is probably not on the system path. This can
+      be done with ```set PATH=%PATH%;C:\Users\yourname\AppData\Local\Pandoc```.
+
+
+## Development
+The git repository includes a ".idea" folder which contains configuration
+information, if using Intellij / PyCharm. To run tests from the command line,
+open a prompt in the project folder and call unittest, starting the test
+discovery process from the "tests" folder, e.g.
+```python -m unittest discover -s tests```.
+
+Some tests will be skipped if the "JAVA_HOME" environment variable is not set.
+This variable is used to determine the location of Java, for the purpose of
+calling / using "ODK_Validate.jar".

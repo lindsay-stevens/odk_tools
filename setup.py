@@ -4,7 +4,7 @@ setup(
     name="odk_tools",
     version="0.0.7",
     description="Tools for working with ODK XLSforms.",
-    url="https://github.com/lindsay-stevens-kirby/",
+    url="https://github.com/lindsay-stevens/",
     author="Lindsay Stevens",
     author_email="lindsay.stevens.au@gmail.com",
     packages=find_packages(),
@@ -13,7 +13,8 @@ setup(
     install_requires=[
         'python-docx>=0.8.5', 'xlrd>=0.9.4',
         'Pillow>=3.0.0', 'lxml>=3.5.0',
-        'https://github.com/XLSForm/pyxform/archive/e33e260b3ae532dabbda9c9843b0f525da67d001.zip'],
+        #'https://github.com/XLSForm/pyxform/archive/e33e260b3ae532dabbda9c9843b0f525da67d001.zip'
+    ],
     keywords="odk",
     classifiers=[
         "Development Status :: 5 - Production/Stable",

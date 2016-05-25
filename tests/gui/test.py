@@ -22,6 +22,9 @@ class TestGui(unittest.TestCase):
             cls.cwd, "site_languages.xlsx")
         cls.fixture_path_sitelangs_single = os.path.join(
             cls.cwd, "site_languages_single.xlsx")
+        package_root = os.path.dirname(os.path.dirname(cls.cwd))
+        bin_directory = os.path.join(os.path.dirname(package_root), "bin")
+        cls.odk_validate_path = os.path.join(bin_directory, "ODK_Validate.jar")
 
     def setUp(self):
         self.remove_after_done_dir = ''
@@ -48,11 +51,11 @@ class TestGui(unittest.TestCase):
         observed, _ = gui._is_java_callable(popen_kwargs=popen_kw)
         self.assertFalse(observed)
 
-    def test_locate_odk_validate_in_test_dir(self):
+    def test_locate_odk_validate_in_context_dir(self):
         """Should return absolute path to ODK_Validate."""
-        current_directory = gui._current_directory()
-        expected = os.path.join(current_directory, "ODK_Validate.jar")
-        observed = gui._locate_odk_validate(current_directory)
+        context = os.path.dirname(self.odk_validate_path)
+        expected = self.odk_validate_path
+        observed = gui._locate_odk_validate(context)
         self.assertEqual(expected, observed)
 
     def test_locate_odk_validate(self):
@@ -77,8 +80,8 @@ class TestGui(unittest.TestCase):
     def test_run_validate_all_valid_args(self):
         """Should return success run header message."""
         expected = "Validate was run. Output below."
+        validate_path = self.odk_validate_path
         java_path = ''
-        validate_path = ''
         xform_path = self.fixture_path_xform
         observed, _ = gui._run_validate_xform(
             java_path=java_path, validate_path=validate_path,
@@ -100,7 +103,7 @@ class TestGui(unittest.TestCase):
         expected = "Parsing form..."
         found, java_path = gui._is_java_callable(gui._popen_kwargs())
         java_path = os.path.expandvars(java_path).replace('"', '')
-        validate_path = ''
+        validate_path = self.odk_validate_path
         xform_path = self.fixture_path_xform
         _, observed = gui._run_validate_xform(
             java_path=java_path, validate_path=validate_path,
@@ -198,7 +201,7 @@ class TestGui(unittest.TestCase):
                     return_value='my_xform-media')):
                 _, content = gui._run_generate_images(
                     xlsform_path=xlsform_path)
-        self.assertEqual(133, len(content))
+        self.assertEqual(134, len(content))
         self.assertTrue(content[0].startswith("Text outside image margins."))
 
     def test_is_7zip_callable_with_installed(self):
