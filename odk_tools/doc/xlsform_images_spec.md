@@ -6,6 +6,7 @@ The modifications affect the "survey" sheet, and require the addition of a
 sheet named "image_settings". The changes / content to these sheets are
 described in the following sections. The workbook should therefore contain
 the following sheets:
+
 - survey
 - choices
 - settings

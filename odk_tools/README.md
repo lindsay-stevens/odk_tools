@@ -1,8 +1,8 @@
 # ODK Tools
 
+
 ## Introduction
-This package is designed with the following XForm authoring and build process
-in mind:
+This package is designed with the following XForm development process in mind:
 
 - Design an XForm following the XLSForm standard.
 - Convert the XLSForm to an XForm XML document.
@@ -16,18 +16,39 @@ This package provides modules for:
 - Generating site-specific editions
 - A GUI for users to provide parameters for the necessary scripts.
 
-In order to generate and validate the XForm, the existing "XLSForm/pyxform"
-Python library and "opendatakit/validate" Java library are bundled.
+In order to generate and validate the XForm, the existing GitHub projects
+"XLSForm/pyxform" Python library and "opendatakit/validate" Java library are
+bundled.
 
-Refer to the End User Guide (GUI or CLI) for details on general usage.
+Refer to the User Guide in the "doc" folder for details on general usage. As
+described in the User Guide, the "examples" folder contains sample input files
+for each of the commands presented in the GUI.
 
 
-## Releases
-Packaging is done using PyInstaller
-(```pyinstaller --onefile --windowed gui.py```), which should work cross
-platform, but must be run from each platform that is being distributed to (see
-the PyInstaller documentation). Documentation is converted using Pandoc
-(```pandoc end_user_guide_gui.md -o end_user_guide_gui.docx```).
+## Packaging
+The requirement for packaging is PyInstaller. To convert the documentation into
+Microsoft Word .docx files (or any other desired format), Pandoc is used.
+
+A copy of a recent build of ODK Validate is required. This should be available
+from https://github.com/opendatakit/validate/releases, or a local build could
+be used. The ODK_Validate.jar file should be placed in the "packaging" folder.
+
+To generate the package:
+
+- Open a command prompt in the "packaging" folder, with the virtual environment
+  activated, if applicable.
+- Call PyInstaller with the spec file, e.g.  ```pyinstaller gui_spec.spec```.
+
+This will create a "dist" folder, which will contain a "gui" folder, which
+contains all the necessary files for "gui.exe" to run. It will also copy in the
+"examples" and "doc" folders.
+
+To convert the markdown .md documentation files to Microsoft Word .docx files:
+
+- Open a command prompt in the "doc" folder.
+- Call pandoc with each file, e.g. ```pandoc user_guide_gui.md -o user_guide_gui.docx```
+    + If this doesn't work, pandoc is probably not on the system path. This can
+      be done with ```set PATH=%PATH%;C:\Users\yourname\AppData\Local\Pandoc```.
 
 
 ## Provided Modules
@@ -39,7 +60,7 @@ The following sections are describe the modules provided by this package.
 
 #### Purpose
 The ODK Collect app for Android has some styling capabilities based on Markdown
-syntax. This came after this script was written, but it has the advantages of
+syntax. This came after this script was written, but it has the advantages of:
 
 - Question text doesn't have Markdown in it, so can be easily transferred to
   some other system or format without being cleaned.
@@ -51,7 +72,7 @@ The script relies on the presence of extended, optional metadata added to an
 XLSForm to generate images containing question and hint text. In the question
 images folder there is:
 
-- A specification for the required metadata (xlsform_images_spec.md).
+- A specification for the required metadata (doc/xlsform_images_spec.md).
 - Two example XLSForms, one with a single language (test/Q1302_BEHAVE.xlsx) and
   one with five languages (test/Q1309_BEHAVE.xlsx).
 - Example images (test/reference_images) showing a question image with a label
