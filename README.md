@@ -121,39 +121,54 @@ printable paper backup copy of the questionnaire, in case the tablet is lost
 or unavailable.
 
 
-## Packaging
-The requirement for packaging is PyInstaller. To convert the documentation into
-Microsoft Word .docx files (or any other desired format), Pandoc is used.
+## Development
+A suggested way to get started with development for Windows:
 
-A copy of a recent build of ODK Validate is required. This should be available
-from https://github.com/opendatakit/validate/releases, or a local build could
-be used. The ODK_Validate.jar file should be placed in the "packaging" folder.
+- Install Python 3.5+.
+- Install 7-Zip.
+- Install Git for Windows, or Cygwin with git.
+- Install Java.
+- Create an environment variable "JAVA_HOME" that points to the Java bin folder.
+    + Optional, but some tests will be skipped if this is not set.
+- Create a new project folder somewhere and open a command prompt there.
+- Create a virtual environment: ```C:\Python35\python -m venv venv```.
+- Activate the virtual environment: ```call venv\Scripts\activate.bat```.
+- Download or ```git clone``` the repository into the project folder.
+- Move the command prompt to the git folder, where "setup.py" is.
+- Install the package in development mode with ```python setup.py develop```.
+- Run the tests with ```python setup.py test```.
 
-To generate the package:
+If all the tests passed then it's OK to start editing the code.
 
-- Open a command prompt in the "packaging" folder, with the virtual environment
+The git repository includes a ".idea" folder which contains project
+configuration information if using Intellij / PyCharm.
+
+
+## Releases
+In addition to the above development environment, the following are required
+to prepare a release:
+
+- Install PyInstaller ```pip install pyinstaller```.
+    + If this doesn't work, install pywin32 first.
+- Download a recent build of ODK Validate from GitHub [1], or build it locally.
+  Save the file "ODK_Validate.jar" in the "bin" folder.
+
+[1] https://github.com/opendatakit/validate/releases
+
+To generate the release:
+
+- Open a command prompt in the "releases" folder, with the virtual environment
   activated, if applicable.
-- Call PyInstaller with the spec file, e.g.  ```pyinstaller gui_spec.spec```.
+- Call PyInstaller with the spec file:  ```pyinstaller gui_spec.spec```.
 
 This will create a "dist" folder, which will contain a "gui" folder, which
 contains all the necessary files for "gui.exe" to run. It will also copy in the
-"examples" and "doc" folders.
+"examples" and "docs" folders.
 
-To convert the markdown .md documentation files to Microsoft Word .docx files:
+For convenience of users, the markdown documentation can be converted into
+Microsoft Word documents using Pandoc.
 
-- Open a command prompt in the "doc" folder.
+- Open a command prompt in the "docs" folder.
 - Call pandoc with each file, e.g. ```pandoc user_guide_gui.md -o user_guide_gui.docx```
     + If this doesn't work, pandoc is probably not on the system path. This can
       be done with ```set PATH=%PATH%;C:\Users\yourname\AppData\Local\Pandoc```.
-
-
-## Development
-The git repository includes a ".idea" folder which contains configuration
-information, if using Intellij / PyCharm. To run tests from the command line,
-open a prompt in the project folder and call unittest, starting the test
-discovery process from the "tests" folder, e.g.
-```python -m unittest discover -s tests```.
-
-Some tests will be skipped if the "JAVA_HOME" environment variable is not set.
-This variable is used to determine the location of Java, for the purpose of
-calling / using "ODK_Validate.jar".
