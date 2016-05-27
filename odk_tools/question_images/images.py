@@ -72,8 +72,9 @@ class Images:
             color=settings['image_color'])
 
         if len(settings['logo_image_path']) > 0:
-            logo = Images._open_image(image_path=settings['logo_image_path'],
-                                      xlsform_path=xlsform_path)
+            logo = Images._locate_and_open_image(
+                image_path=settings['logo_image_path'],
+                xlsform_path=xlsform_path)
             base_image, pixels_from_top = Images._paste_image(
                 base_image=base_image, pixels_from_top=pixels_from_top,
                 paste_image=logo,
@@ -128,7 +129,7 @@ class Images:
                         text=question['text_hint_column'],
                         image_name=question_path)
             if len(question['nest_image_column']) > 0:
-                nest = Images._open_image(
+                nest = Images._locate_and_open_image(
                     image_path=question['nest_image_column'],
                     xlsform_path=xlsform_path)
                 question_image, pixels_from_top = Images._paste_image(
@@ -255,14 +256,16 @@ class Images:
                 pixels_from_top_add += pixels_between
             pixels_from_top += pixels_from_top_add
             if text_x > (base_image_x - image_margin):
-                logger.warn(warn_fmt.format(image_name, 'width', text_x, line))
+                logger.warning(
+                    warn_fmt.format(image_name, 'width', text_x, line))
             if (draw_position_y + text_y) > (base_image_y - image_margin):
-                logger.warn(warn_fmt.format(image_name, 'height', text_y, line))
+                logger.warning(
+                    warn_fmt.format(image_name, 'height', text_y, line))
 
         return base_image, pixels_from_top
 
     @staticmethod
-    def _open_image(image_path, xlsform_path):
+    def _locate_and_open_image(image_path, xlsform_path):
         """
         Try to open an image from the provided path, or as a relative path.
 
@@ -273,17 +276,37 @@ class Images:
         """
         work_dir = os.path.dirname(xlsform_path)
         try:
-            return Image.open(image_path)
+            return Images._open_image(image_path=image_path)
         except FileNotFoundError:
             pass
         try:
             join_path = os.path.join(work_dir, image_path)
-            return Image.open(join_path)
+            return Images._open_image(image_path=join_path)
         except FileNotFoundError as fe:
             msg = "Failed to open {0} as relative or absolute path. " \
                   "Please check that the images exist in the locations that " \
                   "are referred to in the xlsform.".format(image_path)
             raise FileNotFoundError(msg, fe)
+
+    @staticmethod
+    def _open_image(image_path):
+        """
+        Open image and be sure that the file is not still open after reading.
+
+        Pillow library will not necessarily close the image file after opening
+        it for reading, which can cause ResourceWarnings for the open files.
+
+        The method here follows a suggestion from an open issue:
+        https://github.com/python-pillow/Pillow/issues/835#issue-39288006
+
+        Parameters.
+        :param image_path: str. Path to image to open.
+        :return: PIL.Image
+        """
+        with open(image_path, 'rb') as ref_image_file:
+            with Image.open(ref_image_file) as ref_image_file_load:
+                image = ref_image_file_load.copy()
+        return image
 
 
 class ImageSettings:

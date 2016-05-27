@@ -71,24 +71,25 @@ class TestImages(_TestImagesBase):
         xlsform_path = ""
         self.assertFalse(os.path.isfile(image_path))
         with self.assertRaises(FileNotFoundError):
-            Images._open_image(image_path=image_path, xlsform_path=xlsform_path)
+            Images._locate_and_open_image(
+                image_path=image_path, xlsform_path=xlsform_path)
 
     def test_open_image_relative_path(self):
         """Should return Image if the path is relative to the xlsform."""
         xlsform_path = os.path.join(self.cwd, "reference_images/xlsform.xlsx")
         image_path = "open_image.png"
-        observed = Images._open_image(image_path=image_path,
-                                      xlsform_path=xlsform_path)
-        self.assertEqual('PNG', observed.format)
+        observed = Images._locate_and_open_image(
+            image_path=image_path, xlsform_path=xlsform_path)
+        self.assertIsInstance(observed, Image.Image)
 
     def test_open_image_absolute_path(self):
         """Should return Image if the path is absolute."""
         image_path = os.path.join(
             self.cwd, "reference_images", "open_image.png")
         xlsform_path = "xlsform.xlsx"
-        observed = Images._open_image(image_path=image_path,
-                                      xlsform_path=xlsform_path)
-        self.assertEqual('PNG', observed.format)
+        observed = Images._locate_and_open_image(
+            image_path=image_path, xlsform_path=xlsform_path)
+        self.assertIsInstance(observed, Image.Image)
 
 
 class TestImagesImage(_TestImagesBase):
@@ -141,8 +142,8 @@ class TestImagesImage(_TestImagesBase):
                     'logo_image_height': 40}
         observed, _ = Images._prepare_base_image(settings=settings,
                                                  xlsform_path="")
-        base_logo = os.path.join(self.cwd, 'reference_images/base_logo.png')
-        expected = Image.open(base_logo)
+        base_logo = os.path.join(self.cwd, 'reference_images', 'base_logo.png')
+        expected = Images._open_image(image_path=base_logo)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
         expected.close()
 
@@ -188,7 +189,7 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images, "da2d10ye_english_all.png")
-        expected = Image.open(ref_image)
+        expected = Images._open_image(image_path=ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
     def test_label_only(self):
@@ -202,7 +203,7 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images, "da2d10ye_english_label.png")
-        expected = Image.open(ref_image)
+        expected = Images._open_image(image_path=ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
     def test_label_and_hint_only(self):
@@ -216,7 +217,7 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images,
                                  "da2d10ye_english_label_hint.png")
-        expected = Image.open(ref_image)
+        expected = Images._open_image(image_path=ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
     def test_label_and_nested_image_only(self):
@@ -230,7 +231,7 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images,
                                  "da2d10ye_english_label_image.png")
-        expected = Image.open(ref_image)
+        expected = Images._open_image(image_path=ref_image)
         self.assertEqual(list(expected.getdata()), list(observed.getdata()))
 
 

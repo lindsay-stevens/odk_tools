@@ -429,13 +429,18 @@ class ODKToolsGui:
         :param popen_kwargs: dict. Options to pass through to subprocess.Popen.
         :return: bool (working java -version), str (path to java)
         """
-        if os.name == "nt":
-            path = os.path.join('"%JAVA_HOME%"', "bin", "java.exe")
-        else:
-            path = os.path.join('"$JAVA_HOME"', "bin", "java")
-        cmd = "{0} -version".format(path)
-        p = subprocess.Popen(cmd, shell=True, **popen_kwargs)
-        found = p.stderr.read().startswith('java version')
+        found = False
+        path = ''
+        java_home = os.environ.get('JAVA_HOME')
+        if java_home is not None:
+            if os.name == "nt":
+                path = '"{}"'.format(os.path.join(java_home, "bin", "java.exe"))
+            else:
+                path = os.path.join(java_home, "bin", "java")
+            cmd = '{} -version'.format(path)
+            with subprocess.Popen(cmd, **popen_kwargs) as p:
+                output = p.stderr.read()
+            found = output.startswith('java version')
         return found, path
 
     @staticmethod
@@ -537,8 +542,9 @@ class ODKToolsGui:
         else:
             path = "7z"
         cmd = "{0} -version".format(path)
-        p = subprocess.Popen(cmd, **popen_kwargs)
-        found = p.stdout.read().startswith('\n7-Zip')
+        with subprocess.Popen(cmd, **popen_kwargs) as p:
+            output = p.stdout.read()
+        found = output.startswith('\n7-Zip')
         return found, path
 
     @staticmethod

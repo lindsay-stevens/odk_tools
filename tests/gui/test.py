@@ -3,6 +3,7 @@ import os
 import shutil
 from unittest.mock import MagicMock, patch
 from tkinter import messagebox
+import odk_tools
 from odk_tools.gui.gui import ODKToolsGui as gui
 from odk_tools.gui.gui import _CapturingHandler
 import logging
@@ -22,8 +23,8 @@ class TestGui(unittest.TestCase):
             cls.cwd, "site_languages.xlsx")
         cls.fixture_path_sitelangs_single = os.path.join(
             cls.cwd, "site_languages_single.xlsx")
-        package_root = os.path.dirname(os.path.dirname(cls.cwd))
-        bin_directory = os.path.join(os.path.dirname(package_root), "bin")
+        cls.package_root = os.path.dirname(os.path.dirname(cls.cwd))
+        bin_directory = os.path.join(cls.package_root, "bin")
         cls.odk_validate_path = os.path.join(bin_directory, "ODK_Validate.jar")
 
     def setUp(self):
@@ -44,11 +45,13 @@ class TestGui(unittest.TestCase):
         observed, _ = gui._is_java_callable(popen_kwargs=popen_kw)
         self.assertTrue(observed)
 
-    def test_is_java_callable_false_without_java_home(self):
+    @unittest.skipIf(os.environ.get('JAVA_HOME') is None, "JAVA_HOME not set.")
+    def test_is_java_callable_false_with_java_home_removed(self):
         """Should fail to locate java."""
         popen_kw = gui._popen_kwargs()
-        popen_kw['env'] = {}
+        java_home = os.environ.pop('JAVA_HOME')
         observed, _ = gui._is_java_callable(popen_kwargs=popen_kw)
+        os.environ['JAVA_HOME'] = java_home
         self.assertFalse(observed)
 
     def test_locate_odk_validate_in_context_dir(self):
@@ -72,7 +75,7 @@ class TestGui(unittest.TestCase):
 
     def test_current_directory(self):
         """Should return the absolute path to gui.py"""
-        expected = os.path.dirname(os.path.dirname(__file__))
+        expected = os.path.dirname(odk_tools.gui.gui.__file__)
         observed = gui._current_directory()
         self.assertEqual(expected, observed)
 
@@ -283,7 +286,7 @@ class TestCapturingHandler(unittest.TestCase):
         test_logger.setLevel("INFO")
         capture = _CapturingHandler(logger=test_logger)
         messages = ['first message', 'this is a second message']
-        test_logger.warn(messages[0])
+        test_logger.warning(messages[0])
         test_logger.info(messages[1])
         test_logger.removeHandler(hdlr=capture)
         self.assertEqual(capture.watcher.output, messages)
