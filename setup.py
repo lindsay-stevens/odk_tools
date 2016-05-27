@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name="odk_tools",
@@ -7,7 +7,7 @@ setup(
     url="https://github.com/lindsay-stevens/",
     author="Lindsay Stevens",
     author_email="lindsay.stevens.au@gmail.com",
-    packages=find_packages(),
+    packages=['odk_tools'],
     test_suite='tests',
     include_package_data=True,
     license="MIT",
