@@ -3,7 +3,6 @@
 
 
 
-*.whl
 *.pyc
 __pycache__
 dist/
