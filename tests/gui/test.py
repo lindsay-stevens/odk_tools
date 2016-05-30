@@ -269,12 +269,15 @@ class TestGui(unittest.TestCase):
         self.remove_after_done_dir = os.path.join(self.cwd, "editions")
         sitelangs = self.fixture_path_sitelangs_single
         xform = self.fixture_path_xform
+        media_folder = "{}-media".format(self.fixture_path_xform[:-4])
+        os.makedirs(media_folder, exist_ok=True)
         _, content = gui._run_generate_editions(
             xform_path=xform, sitelangs_path=sitelangs)
         self.assertEqual(7, len(content))
         self.assertEqual(
             content[0],
             "Preparing files for site: 64001, languages: ['english']")
+        os.removedirs(media_folder)
 
 
 class TestCapturingHandler(unittest.TestCase):
