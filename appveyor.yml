@@ -4,7 +4,6 @@ environment:
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
-    STATICBUILD: true
 
   matrix:
 
@@ -73,14 +72,23 @@ after_test:
   # If tests are successful, create binary packages for the project.
   - "%CMD_IN_ENV% python setup.py sdist"
   - "%CMD_IN_ENV% python setup.py bdist_wheel"
-  - "%CMD_IN_ENV% python setup.py bdist_msi"
   - "%CMD_IN_ENV% pyinstaller .\\gui_spec.spec"
   - ps: "ls dist"
 
 artifacts:
   # Archive the generated packages in the ci.appveyor.com build report.
   - path: dist\*
+    name: dist-$(PYTHON_WIN)
+  - path: dist\gui
+    name: gui-$(PYTHON_WIN)
 
 #on_success:
 #  - TODO: upload the content of dist/*.whl to a public wheelhouse
 #
+deploy:
+  release: gui-v0.0.7-$(appveyor_build_version)
+  description: 'Appveyor build release gui-v0.0.7-$(appveyor_build_version)'
+  provider: Github
+  auth_token:
+    secure: NtPZXcWIFDe2fOnxFYxDAlnbiVRuClb3A+wlkdB0iXBuyEbgIQmtRRdHSP4jyacd
+  artifact: dist-$(PYTHON_WIN),gui-$(PYTHON_WIN)
