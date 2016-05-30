@@ -12,10 +12,7 @@ setup(
     include_package_data=True,
     license="MIT",
     install_requires=[
-        'python-docx>=0.8.5', 'xlrd>=0.9.4',
-        'Pillow>=3.0.0', 'lxml>=3.5.0',
-        'pyxform'
-        #'https://github.com/XLSForm/pyxform/archive/e33e260b3ae532dabbda9c9843b0f525da67d001.zip'
+        # see requirements.txt
     ],
     keywords="odk",
     classifiers=[
