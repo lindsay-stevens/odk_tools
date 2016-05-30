@@ -3,10 +3,10 @@
 block_cipher = None
 
 
-a = Analysis(['../odk_tools/gui/gui.py'],
+a = Analysis(['odk_tools/gui/gui.py'],
              pathex=['.'],
-             binaries=[('ODK_Validate.jar', '.')],
-             datas=[('../examples', 'examples'), ('../docs', 'docs')],
+             binaries=[('bin/ODK_Validate.jar', '.')],
+             datas=[('examples', 'examples'), ('docs', 'docs')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],

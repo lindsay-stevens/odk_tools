@@ -71,15 +71,15 @@ test_script:
 
 after_test:
   # If tests are successful, create binary packages for the project.
+  - "%CMD_IN_ENV% python setup.py sdist"
   - "%CMD_IN_ENV% python setup.py bdist_wheel"
   - "%CMD_IN_ENV% python setup.py bdist_msi"
+  - "%CMD_IN_ENV% pyinstaller .\\gui_spec.spec"
   - ps: "ls dist"
-  - "%CMD_IN_ENV% python pyinstaller releases\\gui_spec.spec"
 
 artifacts:
   # Archive the generated packages in the ci.appveyor.com build report.
   - path: dist\*
-  - path: releases\*
 
 #on_success:
 #  - TODO: upload the content of dist/*.whl to a public wheelhouse
