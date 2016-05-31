@@ -88,7 +88,11 @@ artifacts:
 deploy:
   release: gui-v0.0.7-$(appveyor_build_version)
   description: 'Appveyor build release gui-v0.0.7-$(appveyor_build_version)'
-  provider: Github
+  provider: GitHub
   auth_token:
     secure: NtPZXcWIFDe2fOnxFYxDAlnbiVRuClb3A+wlkdB0iXBuyEbgIQmtRRdHSP4jyacd
   artifact: dist-$(PYTHON_WIN),gui-$(PYTHON_WIN)
+  draft: false
+  prerelease: false
+  on:
+    appveyor_repo_tag: false
