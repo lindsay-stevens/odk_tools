@@ -1,4 +1,4 @@
-version: '$(appveyor_repo_tag_name) build $(appveyor_build_number)'
+version: $(appveyor_repo_tag_name) build $(appveyor_build_number)
 
 environment:
   global:
@@ -79,7 +79,7 @@ after_test:
   - "%CMD_IN_ENV% python setup.py bdist_wheel"
 
   # Generate the documentation .docx files with pandoc.
-  - "C:\\cygwin\\bin\\bash generate_docx.sh"
+  - "C:\\cygwin\\bin\\bash '${appveyor_build_folder}/generate_docx.sh'"
   - ps: "ls docs"
 
   # Build the pyinstaller package.
