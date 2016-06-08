@@ -72,6 +72,9 @@ install:
   - sh generate_docx.sh
   - ps: "ls docs"
 
+  # Put the version into an environment variable for later use.
+  - for /f "delims=" %a in ('python -c "from odk_tools import __version__;print(__version__)"') do @set odk_tools_version=%a
+
 build: off
 
 test_script:
@@ -97,7 +100,7 @@ artifacts:
 #on_success:
 #  - TODO: upload the content of dist/*.whl to a public wheelhouse
 deploy:
-  release: $(APPVEYOR_REPO_TAG_NAME) build $(APPVEYOR_BUILD_NUMBER)
+  release: $(odk_tools_version) build $(appveyor_build_number)
   description: 'AppVeyor build. Includes Python source dist, wheel, and self-contained executable builds of the GUI app for Windows 32-bit and 64-bit.'
   provider: GitHub
   auth_token:
