@@ -6,7 +6,6 @@ environment:
     # /E:ON and /V:ON options are not enabled in the batch script intepreter
     # See: http://stackoverflow.com/a/13751649/163740
     CMD_IN_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
-    CYG_BASH: C:\cygwin\bin\bash
 
   matrix:
 
@@ -68,7 +67,8 @@ install:
   # Install pandoc for making a .docx version of the markdown documentation.
   # tip per http://code.metager.de/source/xref/mono/appveyor.yml
   - "choco install pandoc -y"
-  - "%CYG_BASH% -lc 'cd $APPVEYOR_BUILD_FOLDER; ls; ./generate_docx.sh'"
+  - set PATH=C:\cygwin\bin;%PATH%
+  - sh generate_docx.sh
   - ps: "ls docs"
 
 build: off
