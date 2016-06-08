@@ -67,6 +67,7 @@ install:
   # Install pandoc for making a .docx version of the markdown documentation.
   # tip per http://code.metager.de/source/xref/mono/appveyor.yml
   - "choco install pandoc -y"
+  - set "PATH=C:\Program Files (x86)\Pandoc";%PATH%
   - set PATH=C:\cygwin\bin;%PATH%
   - sh generate_docx.sh
   - ps: "ls docs"
