@@ -65,7 +65,7 @@ install:
   - pip install -r requirements.txt
 
   # Put the version into an environment variable for later use.
-  - for /f "delims=" %a in ('python -c "from odk_tools import __version__;print(__version__)"') do @set odk_tools_version=%a
+  - for /f "delims=" %%a in ('python -c "from odk_tools import __version__;print(__version__)"') do @set odk_tools_version=%%a
 
   # Install pandoc for making a .docx version of the markdown documentation.
   # tip per http://code.metager.de/source/xref/mono/appveyor.yml
