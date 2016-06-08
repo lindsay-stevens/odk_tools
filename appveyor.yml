@@ -1,3 +1,5 @@
+version: '$(appveyor_repo_tag_name) build $(appveyor_build_number)'
+
 environment:
   global:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
@@ -77,7 +79,7 @@ after_test:
   - "%CMD_IN_ENV% python setup.py bdist_wheel"
 
   # Generate the documentation .docx files with pandoc.
-  - "C:/cygwin/bin/bash docs/generate_docx.sh"
+  - "C:\cygwin\bin\bash generate_docx.sh"
   - ps: "ls docs"
 
   # Build the pyinstaller package.
@@ -94,8 +96,8 @@ artifacts:
 #on_success:
 #  - TODO: upload the content of dist/*.whl to a public wheelhouse
 deploy:
-  release: ${appveyor_repo_tag_name} build $(appveyor_build_number)
-  description: 'AppVeyor build for Windows 32-bit or 64-bit.'
+  release: '{version}'
+  description: 'AppVeyor build. Includes Python source dist, wheel, and self-contained executable builds of the GUI app for Windows 32-bit and 64-bit.'
   provider: GitHub
   auth_token:
     secure: NtPZXcWIFDe2fOnxFYxDAlnbiVRuClb3A+wlkdB0iXBuyEbgIQmtRRdHSP4jyacd
