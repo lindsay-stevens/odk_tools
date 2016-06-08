@@ -64,6 +64,9 @@ install:
   - pip install bin\lxml-3.6.0-cp35-cp35m-%PYTHON_WIN%.whl
   - pip install -r requirements.txt
 
+  # Put the version into an environment variable for later use.
+  - for /f "delims=" %a in ('python -c "from odk_tools import __version__;print(__version__)"') do @set odk_tools_version=%a
+
   # Install pandoc for making a .docx version of the markdown documentation.
   # tip per http://code.metager.de/source/xref/mono/appveyor.yml
   - choco install pandoc -y
@@ -71,9 +74,6 @@ install:
   - set PATH=C:\cygwin\bin;%PATH%
   - sh generate_docx.sh
   - ps: "ls docs"
-
-  # Put the version into an environment variable for later use.
-  - for /f "delims=" %a in ('python -c "from odk_tools import __version__;print(__version__)"') do @set odk_tools_version=%a
 
 build: off
 
