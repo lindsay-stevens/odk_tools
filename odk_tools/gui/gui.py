@@ -8,6 +8,7 @@ import subprocess
 from pyxform.xls2xform import xls2xform_convert
 from odk_tools.question_images import images
 from odk_tools.language_editions import editions
+from odk_tools import __version__
 import logging
 import collections
 
@@ -58,7 +59,8 @@ class ODKToolsGui:
         validation, or wrappers around commands that are run by clicking the
         button controls.
         """
-        master.title("ODK Tools GUI")
+        title_string = ' '.join(["ODK Tools GUI", __version__])
+        master.title(title_string)
         label_width = 20
         textbox_width = 85
         output_height = 25

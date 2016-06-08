@@ -1,9 +1,10 @@
 from setuptools import setup
+from odk_tools import __version__
 
 setup(
     name="odk_tools",
-    version="0.0.7",
-    description="Tools for working with ODK XLSforms.",
+    version=__version__,
+    description="Tools for working with ODK XLSForms.",
     url="https://github.com/lindsay-stevens/",
     author="Lindsay Stevens",
     author_email="lindsay.stevens.au@gmail.com",
