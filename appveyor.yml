@@ -79,7 +79,7 @@ after_test:
   - "%CMD_IN_ENV% python setup.py bdist_wheel"
 
   # Generate the documentation .docx files with pandoc.
-  - "C:\\cygwin\\bin\\bash '${APPVEYOR_BUILD_FOLDER}/generate_docx.sh'"
+  - "C:\\cygwin\\bin\\bash .\\generate_docx.sh"
   - ps: "ls docs"
 
   # Build the pyinstaller package.
