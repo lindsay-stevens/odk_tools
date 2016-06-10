@@ -47,8 +47,9 @@ install:
 build: off
 
 test_script:
-  # Run the project tests
-  - ps: python setup.py test
+  # Run the project tests, not in ps as there's stderr/stdout redirection
+  # which confuses and upsets the build worker.
+  - python setup.py test
 
 after_test:
   # Create python packages for the project.
