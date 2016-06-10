@@ -53,11 +53,11 @@ test_script:
 
 after_test:
   # Create python packages for the project.
-  - ps: python setup.py sdist
-  - ps: python setup.py bdist_wheel
+  - python setup.py sdist
+  - python setup.py bdist_wheel
 
   # Build the pyinstaller package.
-  - ps: pyinstaller gui_spec.spec
+  - pyinstaller gui_spec.spec
   - ps: ls dist
 
 artifacts:
