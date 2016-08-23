@@ -291,6 +291,13 @@ class TestGui(unittest.TestCase):
             "Preparing files for site: 64001, languages: ['english']")
         os.removedirs(media_folder)
 
+    def test_xform_empty_question_label_patch(self):
+        """wip"""
+        xform = self.fixture_path_xform
+        expected = "something"
+        observed = gui._xform_empty_question_label_patch(xform_path=xform)
+        self.assertEqual(expected, observed)
+
 
 class TestCapturingHandler(unittest.TestCase):
     """Tests for the CapturingHandler class."""

@@ -12,6 +12,7 @@ from odk_tools.language_editions import editions
 from odk_tools import __version__
 import logging
 import collections
+import xmltodict
 
 
 class _CapturingHandler(logging.Handler):
@@ -335,6 +336,45 @@ class ODKToolsGui:
             content = None
 
         return header, content
+
+    @staticmethod
+    def _xform_empty_question_label_patch(xform_path):
+        """
+        Insert blank question labels if none exist, to avoid bug in ODK Collect.
+
+        Issue present in ODK Collect v.1.4.10 r1061 where if a question does
+        not have a plain text label defined, the question overview activity
+        will cause an app crash. Specifically, when editing / resuming a saved
+        xform instance, the TextUtils markdown converter throws an NPE.
+
+        This function guards against that by inserting a blank question label
+        text, which avoids the NPE but doesn't affect the form appearance. The
+        text inserted is a HTML-encoded non-blank space: "&amp;nbsp;".
+
+        :param xform_path: Path to XForm to patch.
+        :return: Result of patch action.
+        :rtype: str
+        """
+        with open(xform_path, mode='r') as xform_file:
+            xform_content = xform_file.read()
+        xform = xmltodict.parse(xform_content)
+        blank_label = collections.OrderedDict([('#text', '&nbsp;')])
+        for bound_item in xform['h:html']['h:head']['model']['bind']:
+            for translation in xform['h:html']['h:head']['model']['itext']['translation']:
+                for item in translation['text']:
+                    item_match = item['@id'] == '{0}:label'.format(
+                        bound_item['@nodeset'])
+                    item_value = item.get('value')
+                    has_plain_text_only = isinstance(item_value, str)
+                    if item_match and not has_plain_text_only:
+                        item['value'] = [blank_label, item_value]
+        # TODO: tests, tidy, build etc.
+        xform_fixed = xmltodict.unparse(xform, pretty=True)
+        with open('fixed.xml', mode='w') as fixed:
+            fixed.write(xform_fixed)
+        return "somethingy"
+
+
 
     @staticmethod
     def generate_xform(master, xlsform_path, xform_path):

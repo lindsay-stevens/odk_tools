@@ -5,4 +5,5 @@ lxml>=3.5.0
 pyinstaller>=3.1.1
 
 -e git+https://github.com/XLSForm/pyxform.git@master#egg=pyxform
+-e git+https://github.com/lindsay-stevens/xmltodict.git@2935115bfa419b7f3bde4fd5effce7c6482ad1c4#egg=xmltodict
 -e .
