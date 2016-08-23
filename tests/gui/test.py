@@ -17,6 +17,8 @@ class TestGui(unittest.TestCase):
         cls.cwd = os.path.dirname(__file__)
         cls.fixture_path_xform = os.path.join(cls.cwd, "R1309 BEHAVE.xml")
         cls.fixture_path_xlsform = os.path.join(cls.cwd, "Q1302_BEHAVE.xlsx")
+        cls.fixture_path_xlsform_broken = os.path.join(
+            cls.cwd, "Q1302_BEHAVE_broken.xlsx")
         cls.fixture_path_xlsform_huge_fonts = os.path.join(
             cls.cwd, "R1309_BEHAVE_huge_fonts.xlsx")
         cls.fixture_path_sitelangs = os.path.join(
@@ -147,6 +149,16 @@ class TestGui(unittest.TestCase):
             xlsform_path=xlsform_path, xform_path=xform_path)
         self.assertEqual(expected, observed)
         self.assertTrue(os.path.isfile(xform_path))
+
+    def test_run_generate_xform_all_valid_args_broken_xform(self):
+        """Should return error messages from the xslx form converter."""
+        expected = "[row : 16] List name not in choices sheet: " \
+                   "a_list_that_doesnt_exist"
+        xlsform_path = self.fixture_path_xlsform_broken
+        xform_path = self.fixture_path_xlsform.replace(".xlsx", ".xml")
+        _, observed = gui._run_generate_xform(
+            xlsform_path=xlsform_path, xform_path=xform_path)
+        self.assertEqual(expected, observed)
 
     def test_run_generate_xform_output_path_blank(self):
         """Should return success run header message."""

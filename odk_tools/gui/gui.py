@@ -6,6 +6,7 @@ import os
 import sys
 import subprocess
 from pyxform.xls2xform import xls2xform_convert
+from pyxform.errors import PyXFormError
 from odk_tools.question_images import images
 from odk_tools.language_editions import editions
 from odk_tools import __version__
@@ -322,10 +323,13 @@ class ODKToolsGui:
             unquoted_xlsform = xlsform_path.strip('"')
             unquoted_xform = xform_path.strip('"')
             header = "XLS2XForm was run. Output below."
-            content = xls2xform_convert(
-                xlsform_path=unquoted_xlsform,
-                xform_path=unquoted_xform,
-                validate=False)
+            try:
+                content = xls2xform_convert(
+                    xlsform_path=unquoted_xlsform,
+                    xform_path=unquoted_xform,
+                    validate=False)
+            except PyXFormError as error:
+                content = str(error)
         else:
             header = "XLS2XForm not run: invalid arguments."
             content = None
