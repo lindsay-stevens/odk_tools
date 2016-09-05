@@ -329,8 +329,10 @@ class ODKToolsGui:
                     xlsform_path=unquoted_xlsform,
                     xform_path=unquoted_xform,
                     validate=False)
+                content.append(ODKToolsGui._xform_empty_question_label_patch(
+                    unquoted_xform))
             except PyXFormError as error:
-                content = str(error)
+                content = [str(error)]
         else:
             header = "XLS2XForm not run: invalid arguments."
             content = None
@@ -352,29 +354,55 @@ class ODKToolsGui:
         text inserted is a HTML-encoded non-blank space: "&amp;nbsp;".
 
         :param xform_path: Path to XForm to patch.
+        :type xform_path: str
         :return: Result of patch action.
         :rtype: str
         """
-        with open(xform_path, mode='r') as xform_file:
-            xform_content = xform_file.read()
-        xform = xmltodict.parse(xform_content)
-        blank_label = collections.OrderedDict([('#text', '&nbsp;')])
-        for bound_item in xform['h:html']['h:head']['model']['bind']:
-            for translation in xform['h:html']['h:head']['model']['itext']['translation']:
-                for item in translation['text']:
-                    item_match = item['@id'] == '{0}:label'.format(
-                        bound_item['@nodeset'])
-                    item_value = item.get('value')
-                    has_plain_text_only = isinstance(item_value, str)
-                    if item_match and not has_plain_text_only:
-                        item['value'] = [blank_label, item_value]
-        # TODO: tests, tidy, build etc.
-        xform_fixed = xmltodict.unparse(xform, pretty=True)
-        with open('fixed.xml', mode='w') as fixed:
-            fixed.write(xform_fixed)
-        return "somethingy"
+        status = ""
+        try:
+            with open(xform_path, mode='r') as xform_file:
+                xform_content = xform_file.read()
+            xform_fixed, status = ODKToolsGui.\
+                _xform_empty_question_label_patch_content(xform_content)
+            xform_fixed_xml = xmltodict.unparse(xform_fixed)
+            with open(xform_path, mode='w') as fixed:
+                fixed.write(xform_fixed_xml)
+        except OSError as ose:
+            status = str(ose)
+        return status
 
+    @staticmethod
+    def _xform_empty_question_label_patch_content(xform_content):
+        """
+        Find all image-only question itext and add a blank plain text label.
 
+        Separate function because IO.
+
+        The parse parameter force_list ensures that even single values
+        of that element name will be in a list, so that we don't accidentally
+        loop through the characters of a string.
+
+        :param xform_content: XForm XML content to be modified.
+        :type xform_content: str
+        :return: (Patched XForm XML, status_message)
+        :rtype: tuple(collections.OrderedDict, str)
+        """
+        status_message = ""
+        force_list = ("bind", "translation", "text", "value")
+        xml_dict = xmltodict.parse(xform_content, force_list=force_list)
+        xml_model = xml_dict["h:html"]["h:head"]["model"]
+        for bound_item in xml_model["bind"]:
+            for translation in xml_model["itext"]["translation"]:
+                for itext_item in translation["text"]:
+                    bound_item_ref = "{0}:label".format(bound_item["@nodeset"])
+                    itext_ref_match = itext_item["@id"] == bound_item_ref
+                    itext_item_value = itext_item.get("value")
+                    has_plain_text_value = any(
+                        isinstance(x, str) for x in itext_item_value)
+                    if itext_ref_match and not has_plain_text_value:
+                        itext_item_value.append("&nbsp;")
+                        status_message = "Added itext value patch (&nbsp; fix)."
+        return xml_dict, status_message
 
     @staticmethod
     def generate_xform(master, xlsform_path, xform_path):

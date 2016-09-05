@@ -7,6 +7,7 @@ import odk_tools
 from odk_tools.gui.gui import ODKToolsGui as gui
 from odk_tools.gui.gui import _CapturingHandler
 import logging
+import xmltodict
 
 
 class TestGui(unittest.TestCase):
@@ -152,13 +153,13 @@ class TestGui(unittest.TestCase):
 
     def test_run_generate_xform_all_valid_args_broken_xform(self):
         """Should return error messages from the xslx form converter."""
-        expected = "[row : 16] List name not in choices sheet: " \
-                   "a_list_that_doesnt_exist"
+        expected = ["[row : 16] List name not in choices sheet: "
+                    "a_list_that_doesnt_exist"]
         xlsform_path = self.fixture_path_xlsform_broken
         xform_path = self.fixture_path_xlsform.replace(".xlsx", ".xml")
         _, observed = gui._run_generate_xform(
             xlsform_path=xlsform_path, xform_path=xform_path)
-        self.assertEqual(expected, observed)
+        self.assertListEqual(expected, observed)
 
     def test_run_generate_xform_output_path_blank(self):
         """Should return success run header message."""
@@ -291,12 +292,54 @@ class TestGui(unittest.TestCase):
             "Preparing files for site: 64001, languages: ['english']")
         os.removedirs(media_folder)
 
-    def test_xform_empty_question_label_patch(self):
-        """wip"""
-        xform = self.fixture_path_xform
-        expected = "something"
-        observed = gui._xform_empty_question_label_patch(xform_path=xform)
-        self.assertEqual(expected, observed)
+    @staticmethod
+    def get_temp_patch_content_xml_template():
+        return """<?xml version="1.0" encoding="utf-8"?>
+            <h:html>
+                <h:head>
+                    <model>
+                        <bind nodeset="/MYFORM/a/item1"></bind>
+                    <itext>
+                        <translation>
+                            <text id="/MYFORM/a/item1:label">
+                                <value form="image">my_image1.jpg</value>{0}
+                            </text>
+                        </translation>
+                    </itext>
+                    </model>
+                </h:head>
+            </h:html>"""
+
+    def test_xform_empty_question_label_patch_content_add(self):
+        """Should add a blank value in the text node where one doesn't exist."""
+        xml_template = self.get_temp_patch_content_xml_template()
+        expected = xmltodict.parse(
+            xml_template.format("""<value>&amp;nbsp;</value>"""),
+            force_list=("bind", "translation", "text", "value"))
+        xml_input = xml_template.format("")
+        observed, _ = gui._xform_empty_question_label_patch_content(xml_input)
+        self.assertDictEqual(expected, observed)
+
+    def test_xform_empty_question_label_patch_content_no_overwrite(self):
+        """Should not overwrite plain text itext values that already exist."""
+        xml_template = self.get_temp_patch_content_xml_template()
+        xml_input = xml_template.format(
+            """<value>My plain string itext question label</value>""")
+        expected = xmltodict.parse(
+            xml_input, force_list=("bind", "translation", "text", "value"))
+        observed, _ = gui._xform_empty_question_label_patch_content(xml_input)
+        self.assertDictEqual(expected, observed)
+
+    def test_xform_empty_question_label_patch_from_usual_call_path(self):
+        """Should replace the standard result with a patched XML XForm file."""
+        expected = "Added itext value patch (&nbsp; fix)."
+        xlsform_path = os.path.join(self.cwd, "empty_question_label_patch.xlsx")
+        xform_path = xlsform_path.replace("xlsx", "xml")
+        self.remove_after_done_file = xform_path
+        _, observed = gui._run_generate_xform(
+            xlsform_path=xlsform_path, xform_path=xform_path)
+        self.assertIn(expected, observed)
+        self.assertTrue(os.path.isfile(xform_path))
 
 
 class TestCapturingHandler(unittest.TestCase):
@@ -307,7 +350,7 @@ class TestCapturingHandler(unittest.TestCase):
         test_logger = logging.getLogger("my_test_logger")
         test_logger.setLevel("INFO")
         capture = _CapturingHandler(logger=test_logger)
-        messages = ['first message', 'this is a second message']
+        messages = ["first message", "this is a second message"]
         test_logger.warning(messages[0])
         test_logger.info(messages[1])
         test_logger.removeHandler(hdlr=capture)
