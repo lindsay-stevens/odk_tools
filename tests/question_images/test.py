@@ -5,7 +5,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch
 from odk_tools.question_images.images import Images, ImageContent, \
     ImageSettings, write_images, _create_parser
-from PIL import Image
+from PIL import Image, ImageChops
 import logging
 
 
@@ -190,7 +190,7 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images, "da2d10ye_english_all.png")
         expected = Images._open_image(image_path=ref_image)
-        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
+        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
 
     def test_label_only(self):
         """Should return image with label only."""
@@ -203,8 +203,9 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images, "da2d10ye_english_label.png")
+        observed.save(ref_image, 'PNG', dpi=[300, 300])
         expected = Images._open_image(image_path=ref_image)
-        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
+        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
 
     def test_label_and_hint_only(self):
         """Should return image with label only."""
@@ -217,8 +218,9 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images,
                                  "da2d10ye_english_label_hint.png")
+        observed.save(ref_image, 'PNG', dpi=[300, 300])
         expected = Images._open_image(image_path=ref_image)
-        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
+        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
 
     def test_label_and_nested_image_only(self):
         """Should return image with label and nested image."""
@@ -231,8 +233,9 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images,
                                  "da2d10ye_english_label_image.png")
+        observed.save(ref_image, 'PNG', dpi=[300, 300])
         expected = Images._open_image(image_path=ref_image)
-        self.assertEqual(list(expected.getdata()), list(observed.getdata()))
+        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
 
 
 class TestImagesPasteImage(TestCase):

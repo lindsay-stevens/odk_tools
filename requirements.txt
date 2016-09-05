@@ -1,8 +1,8 @@
 python-docx>=0.8.5
-xlrd>=0.9.4
-Pillow>=3.0.0
-lxml>=3.5.0
-pyinstaller>=3.1.1
+xlrd>=1.0.0
+Pillow>=3.3.1
+lxml>=3.6.0
+pyinstaller>=3.2
 
 -e git+https://github.com/XLSForm/pyxform.git@master#egg=pyxform
 -e git+https://github.com/lindsay-stevens/xmltodict.git@disable_entities#egg=xmltodict
