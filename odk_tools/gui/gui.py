@@ -81,7 +81,8 @@ class ODKToolsGui:
         master.xform_out_path, xform_out_path = ODKToolsGui.build_path_frame(
             master=master,
             label_text="XForm output path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xml_browse)
+            textbox_width=textbox_width, browser_kw=xml_browse,
+            dialog_function=tkinter.filedialog.asksaveasfilename)
         master.generate_xform = ODKToolsGui.build_action_frame(
             master=master,
             label_text="Generate XForm", label_width=label_width,
@@ -200,7 +201,8 @@ class ODKToolsGui:
 
     @staticmethod
     def build_path_frame(
-            master, label_text, label_width, textbox_width, browser_kw):
+            master, label_text, label_width, textbox_width, browser_kw,
+            dialog_function=tkinter.filedialog.askopenfilename):
         """
         Generate a frame with controls for collecting a file path.
 
@@ -214,6 +216,7 @@ class ODKToolsGui:
         :param label_width: int. How wide the label should be.
         :param textbox_width: int. How wide the text box should be.
         :param browser_kw: dict. Keyword arguments to pass to the file browser.
+        :param dialog_function: File dialog generation function to use.
         :return: path frame (tk Frame), path variable (tk StringVar)
         """
         frame = ttk.Frame(master=master)
@@ -232,20 +235,22 @@ class ODKToolsGui:
         frame.browse = ttk.Button(
             master=frame, text="Browse...",
             command=lambda: ODKToolsGui.file_browser(
-                browser_kw=browser_kw, target_variable=path))
+                browser_kw=browser_kw, target_variable=path,
+                dialog_function=dialog_function))
         frame.browse.grid(row=0, column=3, padx=5)
         return frame, path
 
     @staticmethod
-    def file_browser(browser_kw, target_variable):
+    def file_browser(browser_kw, target_variable, dialog_function):
         """
         Set the target_variable value using a file chooser dialog.
 
         Parameters.
         :param browser_kw: dict. Passed in to filedialog constructor.
         :param target_variable: tk control. Where should the value be placed.
+        :param dialog_function: function to generate the file dialog control.
         """
-        target_variable.set(tkinter.filedialog.askopenfilename(**browser_kw))
+        target_variable.set(dialog_function(**browser_kw))
 
     @staticmethod
     def _validate_path(variable_name, path):
