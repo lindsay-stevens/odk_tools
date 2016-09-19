@@ -1,5 +1,16 @@
 # Changelog
 
+## 2016.3
+- Update dependencies for pyxform and xmltodict to forks which address issues 
+  found in the 2016.2 patch updates, namely:
+    - pyxform: avoid escaping double quotes in text (so it's same as xmltodict; 
+      due to using xml.dom.minidom vs. expat or lxml)
+    - xmltodict: preserve the output of mixed child elements, otherwise the 
+      order of items within groups of html:body to not match the instance order, 
+      which in turn caused ODK Collect to not function properly.
+- General note: if the GitHub-based dependencies are not being recognised by 
+  PyCharm, make sure that "pip" and "setuptools" are up to date.
+
 
 ## 2016.2
 - Add a hopefully temporary patch / fix for an Android ODK Collect issue

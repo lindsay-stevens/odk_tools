@@ -299,36 +299,38 @@ class TestGui(unittest.TestCase):
                 <h:head>
                     <model>
                         <bind nodeset="/MYFORM/a/item1"></bind>
-                    <itext>
-                        <translation>
-                            <text id="/MYFORM/a/item1:label">
-                                <value form="image">my_image1.jpg</value>{0}
-                            </text>
-                        </translation>
-                    </itext>
+                        <itext>
+                            <translation>
+                                <text id="/MYFORM/a/item1:label">
+                                    <value form="image">my_image1.jpg</value>{0}
+                                </text>
+                            </translation>
+                        </itext>
                     </model>
                 </h:head>
             </h:html>"""
 
     def test_xform_empty_question_label_patch_content_add(self):
-        """Should add a blank value in the text node where one doesn't exist."""
+        """Should add a blank value in the text node where one doesn"t exist."""
         xml_template = self.get_temp_patch_content_xml_template()
-        expected = xmltodict.parse(
-            xml_template.format("""<value>&amp;nbsp;</value>"""),
-            force_list=("bind", "translation", "text", "value"))
+        expected = "&nbsp;"
         xml_input = xml_template.format("")
-        observed, _ = gui._xform_empty_question_label_patch_content(xml_input)
-        self.assertDictEqual(expected, observed)
+        parsed, _ = gui._xform_empty_question_label_patch_content(xml_input)
+        itext = parsed["h:html"]["h:head"]["model"]["itext"]
+        observed = itext["translation"][0]["text"][0]["value"][1]
+        self.assertEqual(expected, observed)
 
     def test_xform_empty_question_label_patch_content_no_overwrite(self):
         """Should not overwrite plain text itext values that already exist."""
         xml_template = self.get_temp_patch_content_xml_template()
+        expected = "My plain string itext question label"
         xml_input = xml_template.format(
-            """<value>My plain string itext question label</value>""")
-        expected = xmltodict.parse(
-            xml_input, force_list=("bind", "translation", "text", "value"))
+            """<value>{0}</value>""".format(expected))
         observed, _ = gui._xform_empty_question_label_patch_content(xml_input)
-        self.assertDictEqual(expected, observed)
+        parsed, _ = gui._xform_empty_question_label_patch_content(xml_input)
+        itext = parsed["h:html"]["h:head"]["model"]["itext"]
+        observed = itext["translation"][0]["text"][0]["value"][1]["#text"]
+        self.assertEqual(expected, observed)
 
     def test_xform_empty_question_label_patch_from_usual_call_path(self):
         """Should replace the standard result with a patched XML XForm file."""
@@ -340,6 +342,21 @@ class TestGui(unittest.TestCase):
             xlsform_path=xlsform_path, xform_path=xform_path)
         self.assertIn(expected, observed)
         self.assertTrue(os.path.isfile(xform_path))
+
+    def test_xform_empty_question_label_patch_with_full_xlsform(self):
+        """Should insert patch values to all text value elements."""
+        xlsform_path = self.fixture_path_xlsform
+        xform_path = xlsform_path.replace("xlsx", "xml")
+        self.remove_after_done_file = xform_path
+        gui._run_generate_xform(
+            xlsform_path=xlsform_path, xform_path=xform_path)
+        with open(xform_path, mode="r") as xform_file:
+            xform_content = xform_file.read()
+        parsed = xmltodict.parse(xform_content, force_list=("value",))
+        trans = parsed["h:html"]["h:head"]["model"]["itext"]["translation"]
+        for text in trans["text"]:
+            if len(text["value"]) > 1:
+                self.assertIn("&nbsp;", text["value"])
 
 
 class TestCapturingHandler(unittest.TestCase):
