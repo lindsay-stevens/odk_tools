@@ -317,8 +317,8 @@ class TestGui(unittest.TestCase):
         xml_input = xml_template.format("")
         parsed, _ = gui._xform_empty_question_label_patch_content(xml_input)
         itext = parsed["h:html"]["h:head"]["model"]["itext"]
-        observed = itext["translation"][0]["text"][0]["value"][1]
-        self.assertEqual(expected, observed)
+        observed = itext["translation"][0]["text"][0]["value"]
+        self.assertIn(expected, observed)
 
     def test_xform_empty_question_label_patch_content_no_overwrite(self):
         """Should not overwrite plain text itext values that already exist."""
@@ -355,8 +355,36 @@ class TestGui(unittest.TestCase):
         parsed = xmltodict.parse(xform_content, force_list=("value",))
         trans = parsed["h:html"]["h:head"]["model"]["itext"]["translation"]
         for text in trans["text"]:
-            if len(text["value"]) > 1:
-                self.assertIn("&nbsp;", text["value"])
+            text_value_count = len(text["value"])
+            text_value = text["value"]
+            if "&nbsp;" in text_value or \
+                    any(isinstance(x, str) for x in text_value) or \
+                    text.get("form") in ["short", "long"]:
+                pass
+            else:
+                fail_msg = "Could not find &nbsp; or plain text value in " \
+                           " text/@id: {0} ".format(text["@id"])
+                self.fail(fail_msg)
+            if text_value_count > 2:
+                fail_msg = "Maximum of 2 translation text values expected. \n" \
+                           "Found {0} values for text/@id: {1} ".format(
+                               text_value_count, text["@id"])
+                self.fail(fail_msg)
+
+    def test_xform_empty_question_label_patch_validates_ok(self):
+        """Should pass validate step without errors."""
+        xlsform_path = self.fixture_path_xlsform
+        xform_path = xlsform_path.replace("xlsx", "xml")
+        self.remove_after_done_file = xform_path
+        gui._run_generate_xform(
+            xlsform_path=xlsform_path, xform_path=xform_path)
+        _, observed = gui._run_validate_xform(
+            java_path='', validate_path=self.odk_validate_path,
+            xform_path=xform_path)
+        if isinstance(observed, list):
+            observed = "".join(observed)
+        expected = "Xform is valid"
+        self.assertIn(expected, observed)
 
 
 class TestCapturingHandler(unittest.TestCase):

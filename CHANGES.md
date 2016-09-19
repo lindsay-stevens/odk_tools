@@ -1,5 +1,10 @@
 # Changelog
 
+## 2016.4
+- Fix detection of whether there's an existing plain text question label.
+- Don't try to unpack the task result content if there isn't anything to unpack.
+
+
 ## 2016.3
 - Update dependencies for pyxform and xmltodict to forks which address issues 
   found in the 2016.2 patch updates, namely:

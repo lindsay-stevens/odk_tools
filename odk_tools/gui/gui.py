@@ -369,7 +369,8 @@ class ODKToolsGui:
             xform_fixed, status = ODKToolsGui.\
                 _xform_empty_question_label_patch_content(xform_content)
             xform_fixed_xml = xmltodict.unparse(
-                    xform_fixed, ordered_mixed_children=True, pretty=True)
+                    xform_fixed, ordered_mixed_children=True,
+                    short_empty_elements=True)
             with open(xform_path, mode='w') as fixed:
                 fixed.write(xform_fixed_xml)
         except OSError as ose:
@@ -407,8 +408,12 @@ class ODKToolsGui:
                     bound_item_ref = "{0}:label".format(bound_item_nodeset)
                     itext_ref_match = itext_item_id == bound_item_ref
                     itext_item_value = itext_item.get("value")
-                    has_plain_text_value = any(
-                        isinstance(x, str) for x in itext_item_value)
+                    has_plain_text_value = False
+                    for text_value in itext_item_value:
+                        if "@form" not in text_value:
+                            has_plain_text_value = True
+                        elif text_value.get("@form") in ["short", "long"]:
+                            has_plain_text_value = True
                     if itext_ref_match and not has_plain_text_value:
                         itext_item_value.append("&nbsp;")
                         status_message = "Added itext value patch (&nbsp; fix)."
@@ -595,7 +600,10 @@ class ODKToolsGui:
         """
         Return the formatted header and content, in this case line separated.
         """
-        return "\n\n".join([header, *content])
+        if content is not None:
+            return "\n\n".join([header, *content])
+        else:
+            return header
 
     @staticmethod
     def validate_xform(master, java_path, validate_path, xform_path):
