@@ -290,7 +290,7 @@ class TestEditions(unittest.TestCase):
 
             langs = ['english']
             find_images = [glob.glob('{0}/*_{1}.png'.format(
-                src_media_folder_name, x)) for x in langs]
+                src_media_folder, x)) for x in langs]
             expected += list(itertools.chain.from_iterable(find_images))
 
             site_path = Editions._prepare_site_files(
