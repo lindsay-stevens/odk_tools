@@ -147,7 +147,7 @@ class Editions(object):
         :param form_name: str. XForm name.
         :param site_code: str. Site code.
         """
-        target_file = '{0}-{1}.zip'.format(form_name, site_code)
+        target_file = '{0}.zip'.format(site_code)
         target_path = os.path.join(os.path.dirname(source_path), target_file)
         zip_fmt = '{0} a -tzip -mx9 -sdel "{1}" "{2}/{3}*"'.format(
             z7zip_path, target_path, source_path, form_name)

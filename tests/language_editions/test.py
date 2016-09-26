@@ -132,7 +132,7 @@ class TestEditions(unittest.TestCase):
     def test_prepare_zip_job(self):
         """Should result in a zip command."""
         observed = Editions._prepare_zip_job('7zip', 'source', 'form', 'site')
-        expected = '7zip a -tzip -mx9 -sdel "form-site.zip" "source/form*"'
+        expected = '7zip a -tzip -mx9 -sdel "site.zip" "source/form*"'
         self.assertEqual(expected, observed)
 
     def test_execute_zip_jobs_produces_site_zip(self):
@@ -151,7 +151,7 @@ class TestEditions(unittest.TestCase):
         Editions._execute_zip_jobs([job])
 
         observed_files = [x for x in os.listdir(parent_path) if x.endswith('.zip')]
-        expected_files = '{0}-{1}.zip'.format(form_name, site_code)
+        expected_files = '{0}.zip'.format(site_code)
         self.assertEqual([expected_files], observed_files)
 
     def test_execute_zip_jobs_output_path_with_spaces(self):
@@ -170,7 +170,7 @@ class TestEditions(unittest.TestCase):
         Editions._execute_zip_jobs([job])
 
         observed_files = [x for x in os.listdir(parent_path) if x.endswith('.zip')]
-        expected_files = '{0}-{1}.zip'.format(form_name, site_code)
+        expected_files = '{0}.zip'.format(site_code)
         self.assertEqual([expected_files], observed_files)
 
     def test_execute_zip_jobs_zip_contents_correct(self):
@@ -180,8 +180,7 @@ class TestEditions(unittest.TestCase):
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '61202'
         form_name = 'Q1309_BEHAVE'
-        expected_zip = os.path.join(parent_path,
-                                    '{0}-{1}.zip'.format(form_name, site_code))
+        expected_zip = os.path.join(parent_path, '{0}.zip'.format(site_code))
         source_media_folder_name = 'Q1309_BEHAVE-media'
         source_media_folder = os.path.join(self.cwd, source_media_folder_name)
         langs = ['english']
@@ -273,3 +272,38 @@ class TestEditions(unittest.TestCase):
         self.assertEqual(sitelangs, args.sitelangs)
         self.assertEqual(zipexe, args.zipexe)
         self.assertEqual(True, args.concurrently)
+
+    def test_execute_zip_jobs_merge_2_forms_zip_contents_correct(self):
+        """Should result in a zip file contains expected images & paths."""
+        parent_path = os.path.join(self.cwd, 'editions_zip')
+        self.test_output_path = parent_path
+        shutil.rmtree(parent_path, ignore_errors=True)
+        site_code = '61202'
+        zip_output = os.path.join(parent_path, '{0}.zip'.format(site_code))
+        form_names = (('Q1309_BEHAVE', self.xform1),
+                      ('R1309_BEHAVE', self.xform2))
+        expected = []
+        for form_name, xform in form_names:
+            src_media_folder_name = '{0}-media'.format(form_name)
+            src_media_folder = os.path.join(self.cwd, src_media_folder_name)
+            expected += [src_media_folder, '{0}.xml'.format(form_name)]
+
+            langs = ['english']
+            find_images = [glob.glob('{0}/*_{1}.png'.format(
+                src_media_folder_name, x)) for x in langs]
+            expected += list(itertools.chain.from_iterable(find_images))
+
+            site_path = Editions._prepare_site_files(
+                parent_path, xform, site_code, langs)
+            job = Editions._prepare_zip_job(
+                self.z7zip_path, site_path, form_name, site_code)
+            Editions._execute_zip_jobs([job])
+            Editions._clean_up_empty_site_dirs(site_dirs=[site_path])
+
+        with zipfile.ZipFile(os.path.join(parent_path, zip_output)) as zip_out:
+            zip_items = zip_out.infolist()
+        expected_sort = sorted([os.path.normpath(
+            os.path.join(self.cwd, x)) for x in expected])
+        observed_sort = sorted([os.path.normpath(
+            os.path.join(self.cwd, x.filename)) for x in zip_items])
+        self.assertEqual(expected_sort, observed_sort)

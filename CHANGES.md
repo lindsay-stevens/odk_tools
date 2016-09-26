@@ -1,5 +1,11 @@
 # Changelog
 
+## 2016.5
+- Change XForms editions generator to put files into a zip named with just the 
+  site code instead of XForm name plus site code. This makes it possible / 
+  easier to prepare multiple forms in one zip for each site.
+
+
 ## 2016.4
 - Fix detection of whether there's an existing plain text question label.
 - Don't try to unpack the task result content if there isn't anything to unpack.
