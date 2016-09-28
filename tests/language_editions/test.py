@@ -8,7 +8,7 @@ from lxml import etree
 from odk_tools.language_editions.editions import Editions, _create_parser
 
 
-class TestEditions(unittest.TestCase):
+class TestEditionsBase(unittest.TestCase):
 
     def setUp(self):
         self.cwd = os.path.dirname(__file__)
@@ -19,12 +19,24 @@ class TestEditions(unittest.TestCase):
         self.languages = os.path.join(self.cwd, 'site_languages.xlsx')
         self.languages_spaces = os.path.join(
             self.cwd, 'site_languages spaces.xlsx')
+        self.languages_two_only = os.path.join(self.cwd,
+                                               'site_languages_two_only.xlsx')
         self.z7zip_path = 'C:/Program Files/7-Zip/7z.exe'
         self.test_output_path = ''
 
     def tearDown(self):
-        if self.test_output_path != '':
+        if self.test_output_path.endswith('editions'):
+            for path in os.listdir(self.test_output_path):
+                full_path = os.path.join(self.test_output_path, path)
+                if os.path.isfile(full_path):
+                    os.remove(full_path)
+                if os.path.isdir(full_path):
+                    os.rmdir(full_path)
+        else:
             shutil.rmtree(self.test_output_path, ignore_errors=True)
+
+
+class TestEditions(TestEditionsBase):
 
     def test_map_xf_to_none_namespace(self):
         ns = Editions._map_xf_to_xform_namespace(self.document1)
@@ -94,7 +106,7 @@ class TestEditions(unittest.TestCase):
 
     def test_create_output_directory(self):
         """Should create a directory tree."""
-        parent_path = 'editions_create'
+        parent_path = os.path.join(self.cwd, 'editions_create')
         self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '12345'
@@ -132,7 +144,7 @@ class TestEditions(unittest.TestCase):
     def test_prepare_zip_job(self):
         """Should result in a zip command."""
         observed = Editions._prepare_zip_job('7zip', 'source', 'form', 'site')
-        expected = '7zip a -tzip -mx9 -sdel "site.zip" "source/form*"'
+        expected = '7zip a -tzip -mx9 -sdel "site.zip" "/*"'
         self.assertEqual(expected, observed)
 
     def test_execute_zip_jobs_produces_site_zip(self):
@@ -231,51 +243,42 @@ class TestEditions(unittest.TestCase):
             x for x in os.listdir(parent_path) if not x.endswith('.zip')]
         self.assertEqual(0, len(post_cleanup))
 
-    def test_language_editions(self):
-        """Should process all listed sites into zip files."""
-        parent_path = os.path.join(self.cwd, 'editions')
-        self.test_output_path = parent_path
-        shutil.rmtree(parent_path, ignore_errors=True)
-
-        xform_path = self.xform1
-        site_langs_path = self.languages
-        z7zip_path = self.z7zip_path
-        Editions.language_editions(xform_path, site_langs_path, z7zip_path)
-
-        observed = len(glob.glob('{0}/editions/*.zip'.format(self.cwd)))
-        expected = len(Editions._read_site_languages(site_langs_path))
-        self.assertEqual(expected, observed)
-
     def test_create_parser_without_args(self):
         """Should exit when no args provided."""
         with self.assertRaises(SystemExit):
             _create_parser().parse_args([])
 
     def test_create_parser_with_required_args(self):
-        """Should parse the provided arguments."""
+        """Should parse the provided arguments and set defaults where needed."""
         xform = 'Q1302_BEHAVE.xml'
         sitelangs = 'site_languages.xlsx'
         args_list = [xform, sitelangs]
         args = _create_parser().parse_args(args_list)
         self.assertEqual(xform, args.xform)
         self.assertEqual(sitelangs, args.sitelangs)
+        self.assertEqual('C:\\Program Files\\7-Zip\\7z.exe', args.zipexe)
+        self.assertEqual(False, args.concurrently)
+        self.assertEqual(0, args.nested)
 
     def test_create_parser_with_all_args(self):
-        """Should parse the provided arguments."""
+        """Should parse the provided arguments and pass in values."""
         xform = 'Q1302_BEHAVE.xml'
         sitelangs = 'site_languages.xlsx'
-        zipexe = 'C:\\Program Files\\7-Zip\\7z.exe'
+        zipexe = 'C:\\Program Files\\7-Zippy\\7z.exe'
+        zipexe_arg = '--zipexe=' + zipexe
         concurrently = '--concurrently'
-        args_list = ['--zipexe=' + zipexe, concurrently, xform, sitelangs]
+        nested = '--nested'
+        args_list = [zipexe_arg, concurrently, nested, xform, sitelangs]
         args = _create_parser().parse_args(args_list)
         self.assertEqual(xform, args.xform)
         self.assertEqual(sitelangs, args.sitelangs)
         self.assertEqual(zipexe, args.zipexe)
         self.assertEqual(True, args.concurrently)
+        self.assertEqual(1, args.nested)
 
     def test_execute_zip_jobs_merge_2_forms_zip_contents_correct(self):
         """Should result in a zip file contains expected images & paths."""
-        parent_path = os.path.join(self.cwd, 'editions_zip')
+        parent_path = os.path.join(self.cwd, 'editions')
         self.test_output_path = parent_path
         shutil.rmtree(parent_path, ignore_errors=True)
         site_code = '61202'
@@ -307,3 +310,60 @@ class TestEditions(unittest.TestCase):
         observed_sort = sorted([os.path.normpath(
             os.path.join(self.cwd, x.filename)) for x in zip_items])
         self.assertEqual(expected_sort, observed_sort)
+
+
+class TestEditionsSlow(TestEditionsBase):
+    """Tests that are slow, generally end-to-end type tests."""
+
+    def test_language_editions(self):
+        """Should process all listed sites into zip files."""
+        parent_path = os.path.join(self.cwd, 'editions')
+        self.test_output_path = parent_path
+        shutil.rmtree(parent_path, ignore_errors=True)
+
+        xform_path = self.xform1
+        site_langs_path = self.languages
+        z7zip_path = self.z7zip_path
+        Editions.language_editions(xform_path, site_langs_path, z7zip_path,
+                                   nest_in_odk_folders=0)
+
+        observed = len(glob.glob('{0}/editions/*.zip'.format(self.cwd)))
+        expected = len(Editions._read_site_languages(site_langs_path))
+        self.assertEqual(expected, observed)
+
+    def test_language_editions_nest_in_odk_folders(self):
+        """Should place output under /odk/forms/* """
+        parent_path = os.path.join(self.cwd, 'editions')
+        self.test_output_path = parent_path
+        shutil.rmtree(parent_path, ignore_errors=True)
+        form_names = (('Q1309_BEHAVE', self.xform1),
+                      ('R1309_BEHAVE', self.xform2))
+        for form_name, xform in form_names:
+            Editions.language_editions(
+                xform_path=xform, site_languages=self.languages_two_only,
+                z7zip_path=self.z7zip_path, nest_in_odk_folders=1)
+
+        site_settings = (('12501', ('french', 'english')),
+                         ('41101', ('german',)))
+        for site_code, langs in site_settings:
+
+            expected = []
+            for form_name, xform in form_names:
+                src_media_folder_name = '{0}-media'.format(form_name)
+                src_media_folder = os.path.join(self.cwd, src_media_folder_name)
+                expected += [src_media_folder_name, '{0}.xml'.format(form_name)]
+                find_images = [glob.glob('{0}/*_{1}.png'.format(
+                    src_media_folder, x)) for x in langs]
+                expect_images = list(itertools.chain.from_iterable(find_images))
+                expect_images = [os.path.join(os.path.split(os.path.dirname(x))[1], os.path.split(x)[1]) for x in expect_images]
+                expected += expect_images
+            expected += [os.path.join(self.cwd, 'odk'), os.path.join(self.cwd, 'odk', 'forms'),]
+
+            output = os.path.join(parent_path, '{0}.zip'.format(site_code))
+            with zipfile.ZipFile(os.path.join(parent_path, output)) as zip_out:
+                zip_items = zip_out.infolist()
+            expected_sort = sorted([os.path.normpath(
+                os.path.join(self.cwd, 'odk', 'forms', x)) for x in expected])
+            observed_sort = sorted([os.path.normpath(
+                os.path.join(self.cwd, x.filename)) for x in zip_items])
+            self.assertEqual(expected_sort, observed_sort)

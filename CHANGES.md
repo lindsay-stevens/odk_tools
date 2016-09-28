@@ -1,5 +1,11 @@
 # Changelog
 
+## 2016.6
+- Add option to XForms editions generator to nest the output inside of folders 
+  "odk/forms" to allow extracting the archive from the root device storage 
+  folder.
+
+
 ## 2016.5
 - Change XForms editions generator to put files into a zip named with just the 
   site code instead of XForm name plus site code. This makes it possible / 

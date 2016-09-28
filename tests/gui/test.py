@@ -235,7 +235,7 @@ class TestGui(unittest.TestCase):
         with patch(patch_write, MagicMock()):
             header, _ = gui._run_generate_editions(
                 xform_path=xform_path, sitelangs_path=sitelangs_path,
-                z7zip_path='')
+                z7zip_path='', nest_in_odk_folders=0)
         self.assertEqual(expected, header)
 
     def test_run_generate_editions_invalid_xform(self):
@@ -248,7 +248,7 @@ class TestGui(unittest.TestCase):
         with patch(patch_write, MagicMock()):
             header, _ = gui._run_generate_editions(
                 xform_path=xform_path, sitelangs_path=sitelangs_path,
-                z7zip_path='')
+                z7zip_path='', nest_in_odk_folders=0)
         self.assertEqual(expected, header)
 
     def test_run_generate_editions_invalid_sitelangs(self):
@@ -261,7 +261,7 @@ class TestGui(unittest.TestCase):
         with patch(patch_write, MagicMock()):
             header, _ = gui._run_generate_editions(
                 xform_path=xform_path, sitelangs_path=sitelangs_path,
-                z7zip_path='')
+                z7zip_path='', nest_in_odk_folders=0)
         self.assertEqual(expected, header)
 
     def test_run_generate_editions_invalid_7zip(self):
@@ -274,7 +274,7 @@ class TestGui(unittest.TestCase):
         with patch(patch_write, MagicMock()):
             header, _ = gui._run_generate_editions(
                 xform_path=xform_path, sitelangs_path=sitelangs_path,
-                z7zip_path='not a valid path')
+                z7zip_path='not a valid path', nest_in_odk_folders=0)
         self.assertEqual(expected, header)
 
     def test_run_generate_editions_captures_logs(self):
@@ -285,7 +285,7 @@ class TestGui(unittest.TestCase):
         media_folder = "{}-media".format(self.fixture_path_xform[:-4])
         os.makedirs(media_folder, exist_ok=True)
         _, content = gui._run_generate_editions(
-            xform_path=xform, sitelangs_path=sitelangs)
+            xform_path=xform, sitelangs_path=sitelangs, nest_in_odk_folders=0)
         self.assertEqual(7, len(content))
         self.assertEqual(
             content[0],

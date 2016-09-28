@@ -139,12 +139,18 @@ class ODKToolsGui:
             master=master,
             label_text="7zip path", label_width=label_width,
             textbox_width=textbox_width, browser_kw=exe_browse)
+        nest_in_odk_folders = tkinter.IntVar()
         master.generate_editions = ODKToolsGui.build_action_frame(
             master=master,
             label_text="Generate Editions", label_width=label_width,
             command=lambda: ODKToolsGui.generate_editions(
                 master=master, xform_path=xform_sl_path,
-                sitelangs_path=sitelangs_path, z7zip_path=z7zip_path))
+                sitelangs_path=sitelangs_path, z7zip_path=z7zip_path,
+                nest_in_odk_folders=nest_in_odk_folders))
+        master.nest_in_odk_folders = ttk.Checkbutton(
+            master=master.generate_editions, variable=nest_in_odk_folders,
+            text="Nest output in 'odk/forms/*'")
+        master.nest_in_odk_folders.grid(row=0, column=2, padx=5)
 
         master.sep3 = ttk.Separator(master=master).grid(sticky="we")
 
@@ -640,7 +646,8 @@ class ODKToolsGui:
         return found, path
 
     @staticmethod
-    def _run_generate_editions(xform_path, sitelangs_path, z7zip_path=''):
+    def _run_generate_editions(xform_path, sitelangs_path, nest_in_odk_folders,
+                               z7zip_path='',):
         """
         Return edition generation result, including any stderr / stdout content.
 
@@ -650,6 +657,7 @@ class ODKToolsGui:
         Parameters.
         :param xform_path: str. Path to XLSForm to convert.
         :param sitelangs_path: str. Path to site languages spreadsheet.
+        :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
         :param z7zip_path: str. Optional path to 7zip.
         :return: tuple (output header message, message content)
         """
@@ -674,7 +682,8 @@ class ODKToolsGui:
             content = log_capture.watcher.output
             editions.write_editions(xform_path=unquoted_xform,
                                     site_languages=unquoted_sitelang,
-                                    z7zip_path=z7zip_path)
+                                    z7zip_path=z7zip_path,
+                                    nest_in_odk_folders=nest_in_odk_folders)
         else:
             header = "Generate Editions not run: invalid arguments."
             content = None
@@ -682,7 +691,8 @@ class ODKToolsGui:
         return header, content
 
     @staticmethod
-    def generate_editions(master, xform_path, sitelangs_path, z7zip_path):
+    def generate_editions(master, xform_path, sitelangs_path, z7zip_path,
+                          nest_in_odk_folders):
         """
         Run the editions generator, clear the textbox and insert the output.
 
@@ -690,11 +700,13 @@ class ODKToolsGui:
         :param master: tkinter.Frame. Frame where master.output.textbox is.
         :param xform_path: str. Path to XLSForm to convert.
         :param sitelangs_path: str. Path to site languages spreadsheet.
+        :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
         :param z7zip_path: str. Optional path to 7zip.
         """
         header, content = ODKToolsGui._run_generate_editions(
             xform_path=xform_path.get(), sitelangs_path=sitelangs_path.get(),
-            z7zip_path=z7zip_path.get())
+            z7zip_path=z7zip_path.get(),
+            nest_in_odk_folders=nest_in_odk_folders.get())
         text = ODKToolsGui._format_output(header=header, content=content)
         master.output.textbox.delete("1.0", tkinter.END)
         master.output.textbox.insert(tkinter.END, text)
