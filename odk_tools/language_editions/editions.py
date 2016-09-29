@@ -141,14 +141,13 @@ class Editions:
                     shutil.copy2(in_path, out_path)
 
     @staticmethod
-    def _prepare_zip_job(z7zip_path, source_path, form_name, site_code):
+    def _prepare_zip_job(z7zip_path, source_path, site_code):
         """
         Build a 7zip command string for archiving the site xform files.
 
         Parameters.
         :param z7zip_path: str. Path to 7zip executable.
         :param source_path: str. Path to site folder.
-        :param form_name: str. XForm name.
         :param site_code: str. Site code.
         """
         target_file = '{0}.zip'.format(site_code)
@@ -255,7 +254,6 @@ class Editions:
         """
         xform_path = os.path.abspath(xform_path)
         settings = Editions._read_site_languages(site_languages)
-        xform_file_name = os.path.splitext(os.path.basename(xform_path))[0]
         output_path = os.path.join(os.path.dirname(xform_path), 'editions')
 
         zip_jobs = list()
@@ -265,7 +263,7 @@ class Editions:
                 output_path, xform_path, site_code, languages,
                 nest_in_odk_folders)
             zip_job = Editions._prepare_zip_job(
-                z7zip_path, site_path, xform_file_name, site_code)
+                z7zip_path, site_path, site_code)
             zip_jobs.append(zip_job)
             while not site_path.endswith(site_code):
                 site_path = os.path.dirname(site_path)

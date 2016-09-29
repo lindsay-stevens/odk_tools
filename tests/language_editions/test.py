@@ -143,7 +143,7 @@ class TestEditions(TestEditionsBase):
 
     def test_prepare_zip_job(self):
         """Should result in a zip command."""
-        observed = Editions._prepare_zip_job('7zip', 'source', 'form', 'site')
+        observed = Editions._prepare_zip_job('7zip', 'source', 'site')
         expected = '7zip a -tzip -mx9 -sdel "site.zip" "/*"'
         self.assertEqual(expected, observed)
 
@@ -159,7 +159,7 @@ class TestEditions(TestEditionsBase):
         site_path = Editions._prepare_site_files(
             parent_path, self.xform1, site_code, langs)
         job = Editions._prepare_zip_job(
-            self.z7zip_path, site_path, form_name, site_code)
+            self.z7zip_path, site_path, site_code)
         Editions._execute_zip_jobs([job])
 
         observed_files = [x for x in os.listdir(parent_path) if x.endswith('.zip')]
@@ -178,7 +178,7 @@ class TestEditions(TestEditionsBase):
         site_path = Editions._prepare_site_files(
             parent_path, self.xform1, site_code, langs)
         job = Editions._prepare_zip_job(
-            self.z7zip_path, site_path, form_name, site_code)
+            self.z7zip_path, site_path, site_code)
         Editions._execute_zip_jobs([job])
 
         observed_files = [x for x in os.listdir(parent_path) if x.endswith('.zip')]
@@ -203,7 +203,7 @@ class TestEditions(TestEditionsBase):
         site_path = Editions._prepare_site_files(
             parent_path, self.xform1, site_code, langs)
         job = Editions._prepare_zip_job(
-            self.z7zip_path, site_path, form_name, site_code)
+            self.z7zip_path, site_path, site_code)
         Editions._execute_zip_jobs([job])
 
         zip_path = os.path.join(parent_path, expected_zip)
@@ -232,7 +232,7 @@ class TestEditions(TestEditionsBase):
         site_path = Editions._prepare_site_files(
             parent_path, self.xform1, site_code, langs)
         job = Editions._prepare_zip_job(
-            self.z7zip_path, site_path, form_name, site_code)
+            self.z7zip_path, site_path, site_code)
 
         Editions._execute_zip_jobs([job])
         pre_cleanup = [
@@ -299,7 +299,7 @@ class TestEditions(TestEditionsBase):
             site_path = Editions._prepare_site_files(
                 parent_path, xform, site_code, langs)
             job = Editions._prepare_zip_job(
-                self.z7zip_path, site_path, form_name, site_code)
+                self.z7zip_path, site_path, site_code)
             Editions._execute_zip_jobs([job])
             Editions._clean_up_empty_site_dirs(site_dirs=[site_path])
 
