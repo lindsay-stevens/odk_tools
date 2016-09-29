@@ -8,7 +8,7 @@ import subprocess
 from pyxform.xls2xform import xls2xform_convert
 from pyxform.errors import PyXFormError
 from odk_tools.question_images import images
-from odk_tools.language_editions import editions
+from odk_tools.language_editions.editions import Editions
 from odk_tools import __version__
 import logging
 import collections
@@ -680,10 +680,9 @@ class ODKToolsGui:
             editions_log.setLevel('DEBUG')
             log_capture = _CapturingHandler(logger=editions_log)
             content = log_capture.watcher.output
-            editions.write_editions(xform_path=unquoted_xform,
-                                    site_languages=unquoted_sitelang,
-                                    z7zip_path=z7zip_path,
-                                    nest_in_odk_folders=nest_in_odk_folders)
+            Editions.write_language_editions(
+                xform_path=unquoted_xform, site_languages=unquoted_sitelang,
+                z7zip_path=z7zip_path, nest_in_odk_folders=nest_in_odk_folders)
         else:
             header = "Generate Editions not run: invalid arguments."
             content = None

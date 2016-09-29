@@ -200,7 +200,7 @@ class Editions:
 
     @staticmethod
     def _prepare_site_files(output_path, xform_path, site_code, languages,
-                            nest_in_odk_folders=0):
+                            nest_in_odk_folders=0, collect_settings=None):
         """
         Prepare the files for a site edition.
 
@@ -209,6 +209,8 @@ class Editions:
         :param site_code: str. Site code.
         :param languages: list. Languages applicable to the site.
         :param nest_in_odk_folders: str. 1=yes, 0=no. Nest in /odk/forms/*.
+        :param collect_settings: str. Path to collect.settings file to include
+            in nested output folders.
         :return site_path: str. Path to prepared site directory.
         """
         log_msg = 'Preparing files for site: {0}, languages: {1}'
@@ -236,8 +238,9 @@ class Editions:
         return site_path
 
     @staticmethod
-    def language_editions(xform_path, site_languages, z7zip_path,
-                          nest_in_odk_folders=0, concurrently=False):
+    def write_language_editions(
+            xform_path, site_languages, z7zip_path, nest_in_odk_folders=0,
+            collect_settings=None, concurrently=False):
         """
         Coordinate the other class methods to create xform language editions.
 
@@ -248,10 +251,15 @@ class Editions:
             create editions for, and which languages each should get.
         :param z7zip_path: str. Path to 7zip executable.
         :param nest_in_odk_folders: str. 1=yes, 0=no. Nest in /odk/forms/*.
+        :param collect_settings: str. Path to collect.settings file to include
+            in nested output folders.
         :param concurrently: bool. Execute zip jobs concurrently, instead of
             sequentially. If running the script as a pyinstaller single exe,
             only sequential mode can work.
         """
+        if nest_in_odk_folders == 0 and collect_settings is not None:
+            raise ValueError("collect.settings can only be included in the "
+                             "output zip archive if folders are nested.")
         xform_path = os.path.abspath(xform_path)
         settings = Editions._read_site_languages(site_languages)
         output_path = os.path.join(os.path.dirname(xform_path), 'editions')
@@ -261,7 +269,7 @@ class Editions:
         for site_code, languages in settings.items():
             site_path = Editions._prepare_site_files(
                 output_path, xform_path, site_code, languages,
-                nest_in_odk_folders)
+                nest_in_odk_folders, collect_settings)
             zip_job = Editions._prepare_zip_job(
                 z7zip_path, site_path, site_code)
             zip_jobs.append(zip_job)
@@ -271,28 +279,6 @@ class Editions:
 
         Editions._execute_zip_jobs(zip_jobs, concurrently)
         Editions._clean_up_empty_site_dirs(site_paths)
-
-
-def write_editions(xform_path, site_languages, z7zip_path,
-                   nest_in_odk_folders=0, concurrently=False):
-    """
-    Generate zip archives containing site-specific editions of an XForm.
-
-    Parameters.
-    :param xform_path: str. Path to XForm file. It is assumed that the
-        "xform-media" folder is in the same directory as the Xform.
-    :param site_languages: str. Path to XLSX file specifying the sites to
-        create editions for, and which languages each should get.
-    :param z7zip_path: str. Path to 7zip executable.
-    :param nest_in_odk_folders: str. 1=yes, 0=no. Nest in /odk/forms/*.
-    :param concurrently: bool. Execute zip jobs concurrently, instead of
-        sequentially. If running the script as a pyinstaller single exe,
-        only sequential mode can work.
-    """
-    Editions.language_editions(
-        xform_path=xform_path, site_languages=site_languages,
-        z7zip_path=z7zip_path, nest_in_odk_folders=nest_in_odk_folders,
-        concurrently=concurrently)
 
 
 def _create_parser():
@@ -322,6 +308,9 @@ def _create_parser():
              "subfolders 'odk/forms/*. This allows extracting the archive "
              "from the root folder of the device storage."
     )
+    parser.add_argument(
+        "--collect_settings", dest='collect_settings', default=None,
+        help="Path to collect.settings file to add to the nested zip file.")
     return parser
 
 
@@ -332,9 +321,10 @@ def main_cli():
     parser = _create_parser()
     args = parser.parse_args()
     logger.addHandler(logging.StreamHandler())
-    write_editions(xform_path=args.xform, site_languages=args.sitelangs,
-                   z7zip_path=args.zipexe, concurrently=args.concurrently,
-                   nest_in_odk_folders=args.nested)
+    Editions.write_language_editions(
+        xform_path=args.xform, site_languages=args.sitelangs,
+        z7zip_path=args.zipexe, concurrently=args.concurrently,
+        nest_in_odk_folders=args.nested, collect_settings=args.collect_settings)
 
 
 if __name__ == '__main__':

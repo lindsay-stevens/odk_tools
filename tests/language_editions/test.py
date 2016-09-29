@@ -311,6 +311,11 @@ class TestEditions(TestEditionsBase):
             os.path.join(self.cwd, x.filename)) for x in zip_items])
         self.assertEqual(expected_sort, observed_sort)
 
+    def test_write_editions_raise_value_error_on_bad_args(self):
+        """Should raise ValueError if collect.settings given without nesting."""
+        with self.assertRaises(ValueError):
+            Editions.write_language_editions("", "", "", 0, "settings")
+
 
 class TestEditionsSlow(TestEditionsBase):
     """Tests that are slow, generally end-to-end type tests."""
@@ -324,8 +329,8 @@ class TestEditionsSlow(TestEditionsBase):
         xform_path = self.xform1
         site_langs_path = self.languages
         z7zip_path = self.z7zip_path
-        Editions.language_editions(xform_path, site_langs_path, z7zip_path,
-                                   nest_in_odk_folders=0)
+        Editions.write_language_editions(
+            xform_path, site_langs_path, z7zip_path, nest_in_odk_folders=0)
 
         observed = len(glob.glob('{0}/editions/*.zip'.format(self.cwd)))
         expected = len(Editions._read_site_languages(site_langs_path))
@@ -339,7 +344,7 @@ class TestEditionsSlow(TestEditionsBase):
         form_names = (('Q1309_BEHAVE', self.xform1),
                       ('R1309_BEHAVE', self.xform2))
         for form_name, xform in form_names:
-            Editions.language_editions(
+            Editions.write_language_editions(
                 xform_path=xform, site_languages=self.languages_two_only,
                 z7zip_path=self.z7zip_path, nest_in_odk_folders=1)
 
