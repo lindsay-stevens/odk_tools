@@ -1,28 +1,27 @@
 import argparse
-import time
 import os
-import shutil
-import subprocess
-import concurrent.futures
 import logging
 from lxml import etree
 from xlrd import open_workbook
-
+import zipfile
+from typing import List, Tuple, Dict
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+ZipJob = List[Tuple[str, str]]
+ETree = etree.ElementTree
+TupleStr = Tuple[str, ...]
 
 
 class Editions:
 
     @staticmethod
-    def _map_xf_to_xform_namespace(document):
+    def _map_xf_to_xform_namespace(document: ETree) -> Dict[str, str]:
         """
         Map 'xf' as the alias for the xforms namespace instead of None.
 
         Parameters
-        :param document: etree.ElementTree. Document to read namespaces from.
-        :return: dict
+        :param document: Document to read namespaces from.
         """
         root_element = document.getroot()
         namespaces = {k: v for k, v in root_element.nsmap.items() if k}
@@ -30,15 +29,15 @@ class Editions:
         return namespaces
 
     @staticmethod
-    def _update_xform_languages(document, namespaces, languages):
+    def _update_xform_languages(document: ETree, namespaces: Dict[str, str],
+                                languages: TupleStr) -> ETree:
         """
         Remove translations that are not listed, and mark the first as default.
 
         Parameters
-        :param document: etree.ElementTree. Document to remove from.
-        :param namespaces: dict. Namespaces in the document.
-        :param languages: list. Languages to keep.
-        :return: etree.ElementTree. Document with languages updated.
+        :param document: Document to remove from.
+        :param namespaces: Namespaces in the document.
+        :param languages: Languages to keep.
         """
         translations = document.getroot().xpath(
             './/xf:translation', namespaces=namespaces)
@@ -54,15 +53,15 @@ class Editions:
         return document
 
     @staticmethod
-    def _add_site_to_default_sid(document, namespaces, site_code):
+    def _add_site_to_default_sid(document: ETree, namespaces: Dict[str, str],
+                                 site_code: str) -> ETree:
         """
         Find the SID form element and append the site code to the default value.
 
         Parameters.
-        :param document: etree.ElementTree. Document to update.
-        :param namespaces: dict. Namespaces in the document.
-        :param site_code: str. Site code to add.
-        :return: etree.ElementTree. Document with sid updated (if found).
+        :param document: Document to update.
+        :param namespaces: Namespaces in the document.
+        :param site_code: Site code to add.
         """
         sid_xpath = './/xf:instance//xf:visit/xf:sid'
         sid = document.getroot().xpath(sid_xpath, namespaces=namespaces)
@@ -76,7 +75,7 @@ class Editions:
         return document
 
     @staticmethod
-    def _read_site_languages(file_path):
+    def _read_site_languages(file_path: str) -> Dict[str, TupleStr]:
         """
         Read the list of sites and required languages from an XLSX file.
 
@@ -85,200 +84,148 @@ class Editions:
         - Third column is the site code.
 
         Parameters.
-        :params file_path: str. Path to site languages spreadsheet.
-        :return: dict. Keys are site codes, values are language lists.
+        :params file_path: Path to site languages spreadsheet.
         """
         workbook = open_workbook(filename=file_path)
         sheet = workbook.sheet_by_index(0)
         site_settings = dict()
         for row in sheet._cell_values[1:]:
-            language_list = [x.strip() for x in row[0].lower().split('/')]
+            languages = tuple(x.strip() for x in row[0].lower().split('/'))
             site_code = str(int(row[2]))
-            site_settings[site_code] = language_list
+            site_settings[site_code] = languages
         return site_settings
 
     @staticmethod
-    def _create_output_directory(parent_path, site_code, media_folder,
-                                 nest_in_odk_folders=0):
+    def _run_zip_jobs(output_path: str,
+                      zip_jobs: List[Tuple[str, ZipJob, Tuple[str, str]]]):
         """
-        Create a directory for the site xform files in the parent folder.
+        Execute the provided zip jobs by creating and populating a zip file.
 
-        Parameters.
-        :params parent_path: str. Path to the folder to create in.
-        :params site_code: str. Site code, which will become the folder name.
-        :params media_folder: str. The xform media folder name.
-        :param nest_in_odk_folders: str. 1=yes, 0=no. Nest in /odk/forms/*.
+        :param zip_jobs: Zip jobs to execute.
         """
-        site_dir = os.path.join(parent_path, site_code)
-        if nest_in_odk_folders == 1:
-            site_dir = os.path.join(site_dir, 'odk', 'forms')
-        media_dir = os.path.join(site_dir, media_folder)
-        os.makedirs(media_dir, exist_ok=True)
-        return site_dir, media_dir
+        compress = zipfile.ZIP_DEFLATED
+        os.makedirs(output_path, exist_ok=True)
+        dupe_msg = "Skipped duplicating file: {0}"
+        for site_code, jobs, xform in zip_jobs:
+            zip_name = os.path.join(output_path, "{0}.zip".format(site_code))
+            existing_zip_items = list()
+            if os.path.isfile(zip_name):
+                with zipfile.ZipFile(file=zip_name, mode="r") as existing_zip:
+                    for zip_item in existing_zip.namelist():
+                        existing_zip_items.append(os.path.normpath(zip_item))
+            with zipfile.ZipFile(
+                    file=zip_name, mode="a", compression=compress) as zip_file:
+                for source_file, archive_file in jobs:
+                    archive_norm = os.path.normpath(archive_file)
+                    if archive_norm in existing_zip_items:
+                        logger.warning(dupe_msg.format(archive_norm))
+                    else:
+                        zip_file.write(source_file, archive_file)
+                xform_filename, xform_data = xform
+                xform_norm = os.path.normpath(xform_filename)
+                if xform_norm in existing_zip_items:
+                    logger.warning(dupe_msg.format(xform_norm))
+                else:
+                    zip_file.writestr(*xform)
 
     @staticmethod
-    def _copy_images_for_languages(source_path, target_path, languages):
+    def _prepare_zip_jobs(source_path: str, languages: TupleStr) -> ZipJob:
         """
-        Copy xform question images for the languages to the site folder.
-
-        Images are matched to a language assuming the file naming convention of
-        itemName_languageName.jpg.
+        Prepare path (to, from) pairs for use in ZipFile write job.
 
         Parameters.
-        :params source_path: str. Path to all xform images.
-        :params target_path: str. Path to copy to.
-        :params languages: list. Languages to copy images for.
+        :param source_path: Path to copy files from.
+        :param languages: Languages to filter the files lists for.
         """
-        copy_jobs = list()
-        images = os.listdir(source_path)
-        for image in images:
-            image_file_name = os.path.splitext(image)[0]
-            for lang in languages:
-                if image_file_name.endswith(lang):
-                    out_path = os.path.join(target_path, image)
-                    in_path = os.path.join(source_path, image)
-                    copy_jobs.append((in_path, out_path))
-                    shutil.copy2(in_path, out_path)
+        zip_jobs = []
+        source_parent = os.path.dirname(source_path)
+        for base, dirs, files in os.walk(source_path):
+            for file in files:
+                file_name = os.path.splitext(file)[0]
+                for lang in languages:
+                    if file_name.endswith(lang):
+                        file_path = os.path.join(base, file)
+                        arch_path = os.path.relpath(file_path, source_parent)
+                        zip_jobs.append((file_path, arch_path))
+        return zip_jobs
 
     @staticmethod
-    def _prepare_zip_job(z7zip_path, source_path, site_code):
+    def _prepare_site_job(xform_path: str, site_code: str,
+                          languages: TupleStr, nest_in_odk_folders: int=0,
+                          collect_settings: str=None
+                          ) -> Tuple[ZipJob, Tuple[str, str]]:
         """
-        Build a 7zip command string for archiving the site xform files.
+        Prepare the zip jobs and xform for a site.
 
         Parameters.
-        :param z7zip_path: str. Path to 7zip executable.
-        :param source_path: str. Path to site folder.
-        :param site_code: str. Site code.
-        """
-        target_file = '{0}.zip'.format(site_code)
-        while not source_path.endswith(site_code):
-            source_path = os.path.dirname(source_path)
-            if len(source_path) == 0:
-                break
-        target_path = os.path.join(os.path.dirname(source_path), target_file)
-        zip_fmt = '{0} a -tzip -mx9 -sdel "{1}" "{2}/*"'.format(
-            z7zip_path, target_path, source_path)
-        return zip_fmt
-
-    @staticmethod
-    def _execute_zip_jobs(jobs, concurrently=False):
-        """
-        Execute zip jobs.
-
-        Parameters.
-        :param jobs: list. 7zip command strings to execute.
-        :param concurrently: bool. If True, use multiple processes.
-        """
-        logger.info('Running {0} zip jobs.'.format(len(jobs)))
-        run_args = {'stdin': subprocess.PIPE, 'stdout': subprocess.PIPE}
-        error_msg = 'Zip command returned an error code: {0}, {0}'
-        if concurrently:
-            with concurrent.futures.ProcessPoolExecutor(max_workers=4) as ex:
-                fut = [ex.submit(subprocess.run, j, **run_args) for j in jobs]
-            results = [f.result() for f in concurrent.futures.as_completed(fut)]
-        else:
-            results = [subprocess.run(j, **run_args) for j in jobs]
-        for r in results:
-            if r.returncode != 0:
-                logger.error(error_msg.format(r.returncode, r.args))
-        logger.info('Zip jobs finished.')
-
-    @staticmethod
-    def _clean_up_empty_site_dirs(site_dirs):
-        """
-        Remove empty folders (whose contents were archived into zip folders).
-
-        Parameters.
-        :param site_dirs: list. Folders to be removed after archiving.
-        """
-        logger.info('Removing {0} site dirs.'.format(len(site_dirs)))
-        for site_dir in site_dirs:
-            while os.listdir(site_dir):
-                time.sleep(0.1)
-            os.rmdir(site_dir)
-        logger.info('Site dirs removed.')
-
-    @staticmethod
-    def _prepare_site_files(output_path, xform_path, site_code, languages,
-                            nest_in_odk_folders=0, collect_settings=None):
-        """
-        Prepare the files for a site edition.
-
-        Parameters.
-        :param xform_path: str. Path to xform being processed.
-        :param site_code: str. Site code.
-        :param languages: list. Languages applicable to the site.
-        :param nest_in_odk_folders: str. 1=yes, 0=no. Nest in /odk/forms/*.
-        :param collect_settings: str. Path to collect.settings file to include
+        :param xform_path: Path to xform being processed.
+        :param site_code: Site code for the site to process.
+        :param languages: Languages applicable to the site.
+        :param nest_in_odk_folders: 1=yes, 0=no. Nest output in /odk/forms/*.
+        :param collect_settings: Path to collect.settings file to include
             in nested output folders.
-        :return site_path: str. Path to prepared site directory.
         """
         log_msg = 'Preparing files for site: {0}, languages: {1}'
         logger.info(log_msg.format(site_code, languages))
-        parent_path = os.path.dirname(xform_path)
 
-        xform_file_name_full = os.path.basename(xform_path)
-        xform_file_name = os.path.splitext(xform_file_name_full)[0]
-        xform_media_name = '{0}-media'.format(xform_file_name)
-        xform_media_path = os.path.join(parent_path, xform_media_name)
+        xform_file_name = os.path.basename(xform_path)
+        xform_name = os.path.splitext(xform_file_name)[0]
+        xform_media_path = os.path.join(
+            os.path.dirname(xform_path), '{0}-media'.format(xform_name))
+        jobs = Editions._prepare_zip_jobs(
+            source_path=xform_media_path, languages=languages)
 
-        site_path, site_dir_img = Editions._create_output_directory(
-            output_path, site_code, xform_media_name, nest_in_odk_folders)
-        Editions._copy_images_for_languages(
-            xform_media_path, site_dir_img, languages)
+        xform = etree.parse(xform_path)
+        nsp = Editions._map_xf_to_xform_namespace(xform)
+        xform = Editions._update_xform_languages(xform, nsp, languages)
+        xform = Editions._add_site_to_default_sid(xform, nsp, site_code)
+        xform = etree.tostring(xform)
 
-        doc = etree.parse(xform_path)
-        nsp = Editions._map_xf_to_xform_namespace(doc)
-        doc = Editions._update_xform_languages(doc, nsp, languages)
-        doc = Editions._add_site_to_default_sid(doc, nsp, site_code)
-        xform_out = os.path.join(site_path, xform_file_name_full)
-        doc.write(xform_out)
+        if nest_in_odk_folders == 1:
+            nest_prefix = ('odk', 'forms')
+            jobs = [(x, os.path.join(*nest_prefix, y)) for x, y in jobs]
+            xform_file_name = os.path.join(
+                *nest_prefix, os.path.basename(xform_path))
+        if collect_settings is not None:
+            arch_path = os.path.join(
+                'odk', os.path.basename(collect_settings))
+            jobs.append((collect_settings, arch_path))
+
         logger.info('Finished preparing site.')
 
-        return site_path
+        return jobs, (xform_file_name, xform)
 
     @staticmethod
     def write_language_editions(
-            xform_path, site_languages, z7zip_path, nest_in_odk_folders=0,
-            collect_settings=None, concurrently=False):
+            xform_path: str, site_languages: str, nest_in_odk_folders: int=0,
+            collect_settings: str=None):
         """
         Coordinate the other class methods to create xform language editions.
 
         Parameters.
-        :param xform_path: str. Path to XForm file. It is assumed that the
+        :param xform_path: Path to XForm file. It is assumed that the
             "xform-media" folder is in the same directory as the Xform.
-        :param site_languages: str. Path to XLSX file specifying the sites to
+        :param site_languages: Path to XLSX file specifying the sites to
             create editions for, and which languages each should get.
-        :param z7zip_path: str. Path to 7zip executable.
-        :param nest_in_odk_folders: str. 1=yes, 0=no. Nest in /odk/forms/*.
-        :param collect_settings: str. Path to collect.settings file to include
+        :param nest_in_odk_folders: 1=yes, 0=no. Nest output in /odk/forms/*.
+        :param collect_settings: Path to collect.settings file to include
             in nested output folders.
-        :param concurrently: bool. Execute zip jobs concurrently, instead of
-            sequentially. If running the script as a pyinstaller single exe,
-            only sequential mode can work.
         """
-        if nest_in_odk_folders == 0 and collect_settings is not None:
-            raise ValueError("collect.settings can only be included in the "
-                             "output zip archive if folders are nested.")
         xform_path = os.path.abspath(xform_path)
         settings = Editions._read_site_languages(site_languages)
         output_path = os.path.join(os.path.dirname(xform_path), 'editions')
 
         zip_jobs = list()
-        site_paths = list()
         for site_code, languages in settings.items():
-            site_path = Editions._prepare_site_files(
-                output_path, xform_path, site_code, languages,
-                nest_in_odk_folders, collect_settings)
-            zip_job = Editions._prepare_zip_job(
-                z7zip_path, site_path, site_code)
-            zip_jobs.append(zip_job)
-            while not site_path.endswith(site_code):
-                site_path = os.path.dirname(site_path)
-            site_paths.append(site_path)
+            jobs, xform = Editions._prepare_site_job(
+                xform_path=xform_path, site_code=site_code, languages=languages,
+                nest_in_odk_folders=nest_in_odk_folders,
+                collect_settings=collect_settings)
+            zip_jobs.append((site_code, jobs, xform))
 
-        Editions._execute_zip_jobs(zip_jobs, concurrently)
-        Editions._clean_up_empty_site_dirs(site_paths)
+        logger.info('Running {0} zip jobs.'.format(len(zip_jobs)))
+        Editions._run_zip_jobs(output_path, zip_jobs)
+        logger.info('Zip jobs finished.')
 
 
 def _create_parser():
@@ -293,21 +240,11 @@ def _create_parser():
         "sitelangs",
         help="Path to xlsx file with sites and languages specified.")
     parser.add_argument(
-        "--zipexe", dest='zipexe', default="C:\\Program Files\\7-Zip\\7z.exe",
-        help="Path to 7zip executable, if not C:\\Program Files\\7-Zip\\7z.exe")
-    parser.add_argument(
-        "--concurrently", dest='concurrently',
-        action='store_true', default=False,
-        help="Run the zip jobs concurrently (up to 4 at a time), instead of"
-             "sequentially. If running from a pyinstaller single exe, "
-             "only sequential mode can work.")
-    parser.add_argument(
         "--nested", dest="nested",
         action='store_const', default=0, const=1,
         help="Nest the output within each zip file inside additional "
              "subfolders 'odk/forms/*. This allows extracting the archive "
-             "from the root folder of the device storage."
-    )
+             "from the root folder of the device storage.")
     parser.add_argument(
         "--collect_settings", dest='collect_settings', default=None,
         help="Path to collect.settings file to add to the nested zip file.")
@@ -323,7 +260,6 @@ def main_cli():
     logger.addHandler(logging.StreamHandler())
     Editions.write_language_editions(
         xform_path=args.xform, site_languages=args.sitelangs,
-        z7zip_path=args.zipexe, concurrently=args.concurrently,
         nest_in_odk_folders=args.nested, collect_settings=args.collect_settings)
 
 

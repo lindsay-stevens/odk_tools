@@ -85,6 +85,17 @@ Additionally, the script will attempt to append the site code to a xform item
 named 'SID', which is assumed to be the subject ID. This is so that the default
 value is, for example, '1309-61202-', instead of just '1309-'.
 
+There are further options to assist with packaging the language editions for 
+deployment to Android devices. If an ODK Collect "collect.settings" is 
+provided, and the forms are nested, the generated zip file can be simply 
+extracted in the root folder of the device sd card storage.
+
+The "collect.settings" file is a serialization of the preferences set in the 
+ODK Collect app. This file can be exported from the app, or generated from a
+properties file by using \[1\].
+
+\[1\] https://github.com/lindsay-stevens/collect_settings
+
 
 #### Function
 The script requires an XForm, a XForm-media folder, a XLSX sheet that describes
@@ -108,7 +119,8 @@ editions.py XFORM.xml site_langs.xlsx
 #### Output
 A folder named 'editions' in the same folder as the input xform file,
 containing a zip archive for each site, containing the modified xform file
-and itext images.
+and itext images. If a "Collect settings" path was specified, this will be 
+placed in the archive under "odk/", e.g. "odk/collect.settings".
 
 
 ### Conversion to docx
@@ -125,7 +137,6 @@ or unavailable.
 A suggested way to get started with development for Windows:
 
 - Install Python 3.5+.
-- Install 7-Zip.
 - Install Git for Windows, or Cygwin with git.
 - Install Java.
 - Create an environment variable "JAVA_HOME" that points to the Java bin folder.

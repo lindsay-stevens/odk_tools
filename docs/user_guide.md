@@ -90,8 +90,8 @@ will be appended to the default value (e.g. "1309-" becomes "1309-61221-").
 
 - "XForm path" is required.
 - "Site Languages path" is required.
-- "7zip path" is optional. If this is not specified, the default install
-  location of "C:\\Program Files\\7-zip\\7z.exe" is assumed.
+- "Collect Settings path" is optional. If specified, the selected file will 
+  be copied into the archive under "odk/", e.g. "odk/collect.settings".
 - "Nest output" is optional. If ticked, the files will be nested in the zip 
   archive, for example "odk/forms/MY_FORM-media" vs. simply "MY_FORM-media".
 
@@ -109,7 +109,9 @@ sheet, third column, from row 2 onwards, the site code for each site, e.g.
 "61221". The specified languages must match the language names used in the
 XLSForm.
 
-The option "nest output" is to simplify the complete replacement (or fresh 
-setup) of an ODK forms deployment on an Android device. By nesting the forms 
-inside "odk/forms", users can take the produced zip file, put it in the root 
-storage folder and unzip it without having to launch ODK or create folders.
+The options "collect settings" and "nest output" are intended to simplify the 
+complete replacement (or fresh setup) of an ODK forms deployment on an Android 
+device. By replicating the app storage organisation, users can take the 
+produced zip file, put it in the root storage folder and unzip it without 
+having to launch ODK or create folders. The "collect settings" can be used 
+independently of the "nest output" option.

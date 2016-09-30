@@ -70,6 +70,8 @@ class ODKToolsGui:
         xml_browse = {'filetypes': (('XForm XML File', '.xml'),)}
         exe_browse = {'filetypes': (('Exe File', '.exe'),)}
         jar_browse = {'filetypes': (('Java Jar File', '.jar'),)}
+        settings_browse = {'filetypes': (
+            ('Collect Settings File', '.settings'),)}
 
         font = ('Arial', 8)
         ttk.Style().configure('.', font=font)
@@ -135,17 +137,19 @@ class ODKToolsGui:
             master=master,
             label_text="* Site Languages path", label_width=label_width,
             textbox_width=textbox_width, browser_kw=xlsx_browse)
-        master.z7zip_path, z7zip_path = ODKToolsGui.build_path_frame(
-            master=master,
-            label_text="7zip path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=exe_browse)
+        master.collect_settings, collect_settings = \
+            ODKToolsGui.build_path_frame(
+                master=master,
+                label_text="Collect Settings path", label_width=label_width,
+                textbox_width=textbox_width, browser_kw=settings_browse)
         nest_in_odk_folders = tkinter.IntVar()
         master.generate_editions = ODKToolsGui.build_action_frame(
             master=master,
             label_text="Generate Editions", label_width=label_width,
             command=lambda: ODKToolsGui.generate_editions(
                 master=master, xform_path=xform_sl_path,
-                sitelangs_path=sitelangs_path, z7zip_path=z7zip_path,
+                sitelangs_path=sitelangs_path,
+                collect_settings=collect_settings,
                 nest_in_odk_folders=nest_in_odk_folders))
         master.nest_in_odk_folders = ttk.Checkbutton(
             master=master.generate_editions, variable=nest_in_odk_folders,
@@ -625,29 +629,8 @@ class ODKToolsGui:
         master.output.textbox.insert(tkinter.END, text)
 
     @staticmethod
-    def _is_7zip_callable(popen_kwargs):
-        """
-        Check if 7zip can be invoked, and return the exec path.
-
-        On Windows, assume 64-bit Program Files. Otherwise, assume it's on PATH.
-
-        Parameters.
-        :param popen_kwargs: dict. Options to pass through to subprocess.Popen.
-        :return: bool (working java -version), str (path to java)
-        """
-        if os.name == "nt":
-            path = "C:/Program Files/7-zip/7z"
-        else:
-            path = "7z"
-        cmd = "{0} -version".format(path)
-        with subprocess.Popen(cmd, **popen_kwargs) as p:
-            output = p.stdout.read()
-        found = output.startswith('\n7-Zip')
-        return found, path
-
-    @staticmethod
     def _run_generate_editions(xform_path, sitelangs_path, nest_in_odk_folders,
-                               z7zip_path='',):
+                               collect_settings=None,):
         """
         Return edition generation result, including any stderr / stdout content.
 
@@ -658,20 +641,23 @@ class ODKToolsGui:
         :param xform_path: str. Path to XLSForm to convert.
         :param sitelangs_path: str. Path to site languages spreadsheet.
         :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
-        :param z7zip_path: str. Optional path to 7zip.
+        :param collect_settings: Path to collect.settings file to include
+            in nested output folders.
         :return: tuple (output header message, message content)
         """
         valid_xform = ODKToolsGui._validate_path("XLSForm path", xform_path)
         valid_sitelang = ODKToolsGui._validate_path(
             "Site Languages path", sitelangs_path)
 
-        if len(z7zip_path) == 0:
-            valid_z7zip, z7zip_path = ODKToolsGui._is_7zip_callable(
-                popen_kwargs=ODKToolsGui._popen_kwargs())
-        else:
-            valid_z7zip = ODKToolsGui._validate_path("7zip path", z7zip_path)
+        valid_settings = True
+        if collect_settings is not None:
+            if len(collect_settings) != 0:
+                valid_settings = ODKToolsGui._validate_path(
+                    "Collect settings path", collect_settings)
+            else:
+                collect_settings = None
 
-        if valid_xform and valid_sitelang and valid_z7zip:
+        if valid_xform and valid_sitelang and valid_settings:
             unquoted_xform = xform_path.strip('"')
             unquoted_sitelang = sitelangs_path.strip('"')
             header = "Generate Editions was run. Output below."
@@ -682,7 +668,8 @@ class ODKToolsGui:
             content = log_capture.watcher.output
             Editions.write_language_editions(
                 xform_path=unquoted_xform, site_languages=unquoted_sitelang,
-                z7zip_path=z7zip_path, nest_in_odk_folders=nest_in_odk_folders)
+                nest_in_odk_folders=nest_in_odk_folders,
+                collect_settings=collect_settings)
         else:
             header = "Generate Editions not run: invalid arguments."
             content = None
@@ -690,7 +677,7 @@ class ODKToolsGui:
         return header, content
 
     @staticmethod
-    def generate_editions(master, xform_path, sitelangs_path, z7zip_path,
+    def generate_editions(master, xform_path, sitelangs_path, collect_settings,
                           nest_in_odk_folders):
         """
         Run the editions generator, clear the textbox and insert the output.
@@ -700,11 +687,11 @@ class ODKToolsGui:
         :param xform_path: str. Path to XLSForm to convert.
         :param sitelangs_path: str. Path to site languages spreadsheet.
         :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
-        :param z7zip_path: str. Optional path to 7zip.
+        :param collect_settings: str. Optional path to collect.settings file.
         """
         header, content = ODKToolsGui._run_generate_editions(
             xform_path=xform_path.get(), sitelangs_path=sitelangs_path.get(),
-            z7zip_path=z7zip_path.get(),
+            collect_settings=collect_settings.get(),
             nest_in_odk_folders=nest_in_odk_folders.get())
         text = ODKToolsGui._format_output(header=header, content=content)
         master.output.textbox.delete("1.0", tkinter.END)

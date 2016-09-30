@@ -1,5 +1,7 @@
+import contextlib
 import os
 import shutil
+import io
 import xlrd
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
@@ -55,8 +57,9 @@ class TestImages(_TestImagesBase):
 
     def test_create_parser_without_args(self):
         """Should exit when no args provided."""
-        with self.assertRaises(SystemExit):
-            _create_parser().parse_args([])
+        with contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit):
+                _create_parser().parse_args([])
 
     def test_create_parser_with_args(self):
         """Should parse the provided argument."""

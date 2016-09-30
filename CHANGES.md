@@ -1,5 +1,24 @@
 # Changelog
 
+## 2016.7
+- Remove dependency on 7-zip in editions generator. It turned out that the 
+  Python built-in zipfile is just as quick when using 'deflate' compression, 
+  which seems to do about the same job on images as the slower 'lzma'.
+- Re-write editions generator processes to take advantage of Python zipfile 
+  ability to specify archive file paths, which vastly simplifies the module by 
+  removing the need for copying files to the desired folder structure. 7-zip 
+  only has a facility for renaming archive paths after creation, and it's only 
+  possible to rename one file at a time.
+- Remove concurrency option from editions.py since it's not possible (or at 
+  least, apparently inadvisable) to do use Python's zipfile concurrently.
+- Include typing annotations in editions.py to eliminate need for some tests.
+- Add ability to include an ODK Collect app "collect.settings" file in a 
+  language editions zip file.
+- Silence argument parser warnings in parser tests by re-directing stderr.
+- Update GUI code, tests and screenshot to match updated interface for the editions 
+  module.
+
+
 ## 2016.6
 - Add option to XForms editions generator to nest the output inside of folders 
   "odk/forms" to allow extracting the archive from the root device storage 
