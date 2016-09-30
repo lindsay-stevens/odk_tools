@@ -26,12 +26,13 @@ class TestEditionsBase(unittest.TestCase):
         self.test_output_path = os.path.join(self.cwd, 'editions')
 
     def tearDown(self):
-        for path in os.listdir(self.test_output_path):
-            full_path = os.path.join(self.test_output_path, path)
-            if os.path.isfile(full_path):
-                os.remove(full_path)
-            if os.path.isdir(full_path):
-                shutil.rmtree(full_path, ignore_errors=True)
+        if os.path.isdir(self.test_output_path):
+            for path in os.listdir(self.test_output_path):
+                full_path = os.path.join(self.test_output_path, path)
+                if os.path.isfile(full_path):
+                    os.remove(full_path)
+                if os.path.isdir(full_path):
+                    shutil.rmtree(full_path, ignore_errors=True)
 
 
 class TestEditionsXML(TestEditionsBase):
