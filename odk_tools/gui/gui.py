@@ -13,7 +13,6 @@ from odk_tools import __version__
 import logging
 import collections
 import xmltodict
-import traceback
 
 
 class _CapturingHandler(logging.Handler):
@@ -449,8 +448,8 @@ class ODKToolsGui:
                 xform_path=xform_path.get())
             text = ODKToolsGui._format_output(header=header, content=content)
             master.output.textbox.insert(tkinter.END, text)
-        except Exception:
-            master.output.textbox.insert(tkinter.END, traceback.format_exc())
+        except Exception as e:
+            master.output.textbox.insert(tkinter.END, repr(e))
 
     @staticmethod
     def _run_generate_images(xlsform_path):
@@ -500,8 +499,8 @@ class ODKToolsGui:
                 xlsform_path=xlsform_path.get())
             text = ODKToolsGui._format_output(header=header, content=content)
             master.output.textbox.insert(tkinter.END, text)
-        except Exception:
-            master.output.textbox.insert(tkinter.END, traceback.format_exc())
+        except Exception as e:
+            master.output.textbox.insert(tkinter.END, repr(e))
 
     @staticmethod
     def _current_directory():
@@ -641,8 +640,8 @@ class ODKToolsGui:
                 xform_path=xform_path.get())
             text = ODKToolsGui._format_output(header=header, content=content)
             master.output.textbox.insert(tkinter.END, text)
-        except Exception:
-            master.output.textbox.insert(tkinter.END, traceback.format_exc())
+        except Exception as e:
+            master.output.textbox.insert(tkinter.END, repr(e))
 
     @staticmethod
     def _run_generate_editions(xform_path, sitelangs_path, nest_in_odk_folders,
@@ -716,8 +715,8 @@ class ODKToolsGui:
                 nest_in_odk_folders=nest_in_odk_folders.get())
             text = ODKToolsGui._format_output(header=header, content=content)
             master.output.textbox.insert(tkinter.END, text)
-        except Exception:
-            master.output.textbox.insert(tkinter.END, traceback.format_exc())
+        except Exception as e:
+            master.output.textbox.insert(tkinter.END, repr(e))
 
 
 if __name__ == "__main__":
