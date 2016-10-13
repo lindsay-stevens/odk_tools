@@ -15,6 +15,9 @@ import collections
 import xmltodict
 
 
+strip_wrapping_path_chars = "\" \r\n\t"
+
+
 class _CapturingHandler(logging.Handler):
     """
     A logging handler capturing all (raw and formatted) logging output.
@@ -286,7 +289,7 @@ class ODKToolsGui:
             tkinter.messagebox.showerror(
                 title="Input Error",
                 message="\n".join(input_error))
-        elif not os.path.isfile(path.strip('"')):
+        elif not os.path.isfile(path.strip(strip_wrapping_path_chars)):
             file_error = (
                 "{0} does not correspond to a file.".format(variable_name),
                 "Please check the path and try again.")
@@ -336,8 +339,8 @@ class ODKToolsGui:
                 xlsform_path=xlsform_path)
 
         if valid_xlsform and xform_path is not None:
-            unquoted_xlsform = xlsform_path.strip('"')
-            unquoted_xform = xform_path.strip('"')
+            unquoted_xlsform = xlsform_path.strip(strip_wrapping_path_chars)
+            unquoted_xform = xform_path.strip(strip_wrapping_path_chars)
             header = "XLS2XForm was run. Output below."
             try:
                 content = xls2xform_convert(
@@ -469,7 +472,7 @@ class ODKToolsGui:
         valid_xlsform = ODKToolsGui._validate_path("XLSForm path", xlsform_path)
 
         if valid_xlsform:
-            unquoted_xlsform = xlsform_path.strip('"')
+            unquoted_xlsform = xlsform_path.strip(strip_wrapping_path_chars)
             header = "Generate Images was run. Output below."
             images_log = logging.getLogger('odk_tools.question_images.images')
             images_log.setLevel("DEBUG")
@@ -602,8 +605,8 @@ class ODKToolsGui:
             "XForm path", xform_path)
 
         if valid_java and valid_validate and valid_xform:
-            unquoted_validate = validate_path.strip('"')
-            unquoted_xform = xform_path.strip('"')
+            unquoted_validate = validate_path.strip(strip_wrapping_path_chars)
+            unquoted_xform = xform_path.strip(strip_wrapping_path_chars)
             cmd = ['java', '-jar', unquoted_validate, unquoted_xform]
             env = {'PATH': java_path}
             header = "Validate was run. Output below."
@@ -673,8 +676,8 @@ class ODKToolsGui:
                 collect_settings = None
 
         if valid_xform and valid_sitelang and valid_settings:
-            unquoted_xform = xform_path.strip('"')
-            unquoted_sitelang = sitelangs_path.strip('"')
+            unquoted_xform = xform_path.strip(strip_wrapping_path_chars)
+            unquoted_sitelang = sitelangs_path.strip(strip_wrapping_path_chars)
             header = "Generate Editions was run. Output below."
             editions_log = logging.getLogger(
                 'odk_tools.language_editions.editions')

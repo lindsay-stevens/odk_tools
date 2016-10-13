@@ -119,9 +119,16 @@ class TestGui(unittest.TestCase):
         self.assertTrue(observed[1].startswith(expected))
 
     def test_validate_path_valid_xform(self):
-        """Should open a File Error message box."""
+        """Should consider a real file valid."""
         observed = Gui._validate_path(
             variable_name="XForm path", path=self.fixture_path_xform)
+        self.assertTrue(observed)
+
+    def test_validate_path_valid_xform_strip_quotes_and_whitespace(self):
+        """Should consider a real file with wrapping quotes and spaces valid."""
+        very_whack_path = "\t \" {0}\" \r\n".format(self.fixture_path_xform)
+        observed = Gui._validate_path(
+            variable_name="XForm path", path=very_whack_path)
         self.assertTrue(observed)
 
     def test_validate_path_blank_xform(self):
