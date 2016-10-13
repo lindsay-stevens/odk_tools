@@ -1,5 +1,20 @@
 # Changelog
 
+## 2016.8
+- Fix unicode characters being mangled by the XForm patch step: by not 
+  specifying the file encoding on file access, this broke the output of 
+  unicode characters.
+- Improved user feedback: add a message in the output area to indicate which 
+  action is currently running, and also catch all exceptions and show the 
+  message in case something goes wrong. Previously, it was very mysterious 
+  when an uncaught exception happened.
+- Add input validation of paths to language_editions: check that at least 
+  the file extensions look right.
+- Expand the characters that the gui input processing will trim: previously it 
+  would just remove quotes around paths, now it will remove spaces, tabs, 
+  carriage returns, line feeds and quotes.
+
+
 ## 2016.7
 - Remove dependency on 7-zip in editions generator. It turned out that the 
   Python built-in zipfile is just as quick when using 'deflate' compression, 
