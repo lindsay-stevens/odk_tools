@@ -219,8 +219,7 @@ class Editions:
             in nested output folders.
         """
         xform_path = os.path.abspath(xform_path)
-        settings = Editions._read_site_languages(site_languages)
-        output_path = os.path.join(os.path.dirname(xform_path), 'editions')
+        site_languages = os.path.abspath(site_languages)
 
         xform_path_ext = os.path.splitext(xform_path)[1].upper()
         if xform_path_ext != ".XML":
@@ -233,12 +232,16 @@ class Editions:
                 resource_name="Site languages", expected=".XLSX extension",
                 actual=site_languages_ext))
         if collect_settings is not None:
+            collect_settings = os.path.abspath(collect_settings)
             collect_settings_base = os.path.basename(collect_settings)
             if collect_settings_base != "collect.settings":
                 raise ValueError(Editions._path_error_format(
                     resource_name="Collect Settings",
                     expected="collect.settings file",
                     actual=collect_settings_base))
+
+        settings = Editions._read_site_languages(site_languages)
+        output_path = os.path.join(os.path.dirname(xform_path), 'editions')
 
         zip_jobs = list()
         for site_code, languages in settings.items():

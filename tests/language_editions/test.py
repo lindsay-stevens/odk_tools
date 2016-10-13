@@ -135,6 +135,33 @@ class TestEditionsConfig(TestEditionsBase):
         self.assertEqual(sitelangs, args.sitelangs)
         self.assertEqual(1, args.nested)
 
+    def test_write_editions_validation_xform(self):
+        """Should raise a ValueError if the XForm path ext is not XML."""
+        xform_invalid = "Q1302_BEHAVE.abc"
+        with self.assertRaises(ValueError) as ar_context:
+            Editions.write_language_editions(
+                xform_path=xform_invalid, site_languages=self.languages,
+                collect_settings=self.collect_settings)
+        self.assertIn("XML", repr(ar_context.exception))
+
+    def test_write_editions_validation_site_langs(self):
+        """Should raise a ValueError if the site_lang path ext is not XLSX."""
+        site_lang_invalid = "site_languages.abc"
+        with self.assertRaises(ValueError) as ar_context:
+            Editions.write_language_editions(
+                xform_path=self.xform1, site_languages=site_lang_invalid,
+                collect_settings=self.collect_settings)
+        self.assertIn("XLSX", repr(ar_context.exception))
+
+    def test_write_editions_validation_collect_settings(self):
+        """Should raise a ValueError if the collect.settings base is wrong."""
+        collect_settings_invalid = os.path.join(self.cwd, "collecting.set")
+        with self.assertRaises(ValueError) as ar_context:
+            Editions.write_language_editions(
+                xform_path=self.xform1, site_languages=self.languages,
+                collect_settings=collect_settings_invalid)
+        self.assertIn("collect.settings", repr(ar_context.exception))
+
 
 class TestEditionsJobs(TestEditionsBase):
     """Job preparation and execution related tests."""
