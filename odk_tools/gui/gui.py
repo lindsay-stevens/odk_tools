@@ -374,14 +374,14 @@ class ODKToolsGui:
         :rtype: str
         """
         try:
-            with open(xform_path, mode='r') as xform_file:
+            with open(xform_path, mode='r', encoding="UTF-8") as xform_file:
                 xform_content = xform_file.read()
             xform_fixed, status = ODKToolsGui.\
                 _xform_empty_question_label_patch_content(xform_content)
             xform_fixed_xml = xmltodict.unparse(
                     xform_fixed, ordered_mixed_children=True,
                     short_empty_elements=True)
-            with open(xform_path, mode='w') as fixed:
+            with open(xform_path, mode='w', encoding="UTF-8") as fixed:
                 fixed.write(xform_fixed_xml)
         except OSError as ose:
             status = "Error during itext value patch:\n{0}".format(str(ose))

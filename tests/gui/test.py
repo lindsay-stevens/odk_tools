@@ -18,6 +18,8 @@ class TestGui(unittest.TestCase):
         cls.cwd = os.path.dirname(__file__)
         cls.fixture_path_xform = os.path.join(cls.cwd, "R1309 BEHAVE.xml")
         cls.fixture_path_xlsform = os.path.join(cls.cwd, "Q1302_BEHAVE.xlsx")
+        cls.fixture_path_xlsform_1405 = os.path.join(
+            cls.cwd, "R1405_BEHAVE.xlsx")
         cls.fixture_path_xlsform_broken = os.path.join(
             cls.cwd, "Q1302_BEHAVE_broken.xlsx")
         cls.fixture_path_xlsform_huge_fonts = os.path.join(
@@ -372,6 +374,22 @@ class TestGui(unittest.TestCase):
     def test_xform_empty_question_label_patch_validates_ok(self):
         """Should pass validate step without errors."""
         xlsform_path = self.fixture_path_xlsform
+        xform_path = xlsform_path.replace("xlsx", "xml")
+        self.remove_after_done_file = xform_path
+        Gui._run_generate_xform(
+            xlsform_path=xlsform_path, xform_path=xform_path)
+        _, observed = Gui._run_validate_xform(
+            java_path='', validate_path=self.odk_validate_path,
+            xform_path=xform_path)
+        if isinstance(observed, list):
+            observed = "".join(observed)
+        expected = "Xform is valid"
+        self.assertIn(expected, observed)
+
+    def test_xform_empty_question_label_patch_validates_ok_unicode(self):
+        """Should pass validate step without errors."""
+        xlsform_path = self.fixture_path_xlsform_1405
+        # 1405 includes a whole lot of unicode characters.
         xform_path = xlsform_path.replace("xlsx", "xml")
         self.remove_after_done_file = xform_path
         Gui._run_generate_xform(
