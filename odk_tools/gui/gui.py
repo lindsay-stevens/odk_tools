@@ -13,6 +13,7 @@ from odk_tools import __version__
 import logging
 import collections
 import xmltodict
+import traceback
 
 
 class _CapturingHandler(logging.Handler):
@@ -439,12 +440,17 @@ class ODKToolsGui:
         :param xlsform_path: str. Path to XLSForm to convert.
         :param xform_path: str. Path for XForm XML output.
         """
-        header, content = ODKToolsGui._run_generate_xform(
-            xlsform_path=xlsform_path.get(),
-            xform_path=xform_path.get())
-        text = ODKToolsGui._format_output(header=header, content=content)
         master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(tkinter.END, text)
+        master.output.textbox.insert(
+            tkinter.END, "Generate XForm running, please wait...\n\n")
+        try:
+            header, content = ODKToolsGui._run_generate_xform(
+                xlsform_path=xlsform_path.get(),
+                xform_path=xform_path.get())
+            text = ODKToolsGui._format_output(header=header, content=content)
+            master.output.textbox.insert(tkinter.END, text)
+        except Exception:
+            master.output.textbox.insert(tkinter.END, traceback.format_exc())
 
     @staticmethod
     def _run_generate_images(xlsform_path):
@@ -486,11 +492,16 @@ class ODKToolsGui:
         :param master: tkinter.Frame. Frame where master.output.textbox is.
         :param xlsform_path: str. Path to XLSForm to convert.
         """
-        header, content = ODKToolsGui._run_generate_images(
-            xlsform_path=xlsform_path.get())
-        text = ODKToolsGui._format_output(header=header, content=content)
         master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(tkinter.END, text)
+        master.output.textbox.insert(
+            tkinter.END, "Generate Images running, please wait...\n\n")
+        try:
+            header, content = ODKToolsGui._run_generate_images(
+                xlsform_path=xlsform_path.get())
+            text = ODKToolsGui._format_output(header=header, content=content)
+            master.output.textbox.insert(tkinter.END, text)
+        except Exception:
+            master.output.textbox.insert(tkinter.END, traceback.format_exc())
 
     @staticmethod
     def _current_directory():
@@ -620,13 +631,18 @@ class ODKToolsGui:
         """
         Run the XForm validation, clear the textbox and insert the output.
         """
-        header, content = ODKToolsGui._run_validate_xform(
-            java_path=java_path.get(),
-            validate_path=validate_path.get(),
-            xform_path=xform_path.get())
-        text = ODKToolsGui._format_output(header=header, content=content)
         master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(tkinter.END, text)
+        master.output.textbox.insert(
+            tkinter.END, "Validate XForm running, please wait...\n\n")
+        try:
+            header, content = ODKToolsGui._run_validate_xform(
+                java_path=java_path.get(),
+                validate_path=validate_path.get(),
+                xform_path=xform_path.get())
+            text = ODKToolsGui._format_output(header=header, content=content)
+            master.output.textbox.insert(tkinter.END, text)
+        except Exception:
+            master.output.textbox.insert(tkinter.END, traceback.format_exc())
 
     @staticmethod
     def _run_generate_editions(xform_path, sitelangs_path, nest_in_odk_folders,
@@ -689,13 +705,19 @@ class ODKToolsGui:
         :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
         :param collect_settings: str. Optional path to collect.settings file.
         """
-        header, content = ODKToolsGui._run_generate_editions(
-            xform_path=xform_path.get(), sitelangs_path=sitelangs_path.get(),
-            collect_settings=collect_settings.get(),
-            nest_in_odk_folders=nest_in_odk_folders.get())
-        text = ODKToolsGui._format_output(header=header, content=content)
         master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(tkinter.END, text)
+        master.output.textbox.insert(
+            tkinter.END, "Generate Editions running, please wait...\n\n")
+        try:
+            header, content = ODKToolsGui._run_generate_editions(
+                xform_path=xform_path.get(),
+                sitelangs_path=sitelangs_path.get(),
+                collect_settings=collect_settings.get(),
+                nest_in_odk_folders=nest_in_odk_folders.get())
+            text = ODKToolsGui._format_output(header=header, content=content)
+            master.output.textbox.insert(tkinter.END, text)
+        except Exception:
+            master.output.textbox.insert(tkinter.END, traceback.format_exc())
 
 
 if __name__ == "__main__":
