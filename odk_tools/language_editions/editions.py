@@ -196,6 +196,13 @@ class Editions:
         return jobs, (xform_file_name, xform)
 
     @staticmethod
+    def _path_error_format(
+            resource_name: str, expected: str, actual: str, ):
+        return "Expected {0} for {1}, got {2}. " \
+               "Please check the file path and correct it.".format(
+                expected, resource_name, actual)
+
+    @staticmethod
     def write_language_editions(
             xform_path: str, site_languages: str, nest_in_odk_folders: int=0,
             collect_settings: str=None):
@@ -214,6 +221,24 @@ class Editions:
         xform_path = os.path.abspath(xform_path)
         settings = Editions._read_site_languages(site_languages)
         output_path = os.path.join(os.path.dirname(xform_path), 'editions')
+
+        xform_path_ext = os.path.splitext(xform_path)[1].upper()
+        if xform_path_ext != ".XML":
+            raise ValueError(Editions._path_error_format(
+                resource_name="XForm", expected=".XML extension",
+                actual=xform_path_ext))
+        site_languages_ext = os.path.splitext(site_languages)[1].upper()
+        if site_languages_ext != ".XLSX":
+            raise ValueError(Editions._path_error_format(
+                resource_name="Site languages", expected=".XLSX extension",
+                actual=site_languages_ext))
+        if collect_settings is not None:
+            collect_settings_base = os.path.basename(collect_settings)
+            if collect_settings_base != "collect.settings":
+                raise ValueError(Editions._path_error_format(
+                    resource_name="Collect Settings",
+                    expected="collect.settings file",
+                    actual=collect_settings_base))
 
         zip_jobs = list()
         for site_code, languages in settings.items():
