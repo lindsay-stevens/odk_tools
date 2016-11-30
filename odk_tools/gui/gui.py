@@ -13,7 +13,7 @@ from odk_tools import __version__
 import logging
 import collections
 import xmltodict
-
+from functools import partial
 
 strip_wrapping_path_chars = "\" \r\n\t"
 
@@ -78,6 +78,7 @@ class ODKToolsGui:
 
         font = ('Arial', 8)
         ttk.Style().configure('.', font=font)
+        generic_pre_msg = "{0} task initiated, please wait...\n\n"
 
         master.xlsform_path, xlsform_path = ODKToolsGui.build_path_frame(
             master=master,
@@ -93,7 +94,8 @@ class ODKToolsGui:
             label_text="Generate XForm", label_width=label_width,
             command=lambda: ODKToolsGui.generate_xform(
                 master=master, xlsform_path=xlsform_path,
-                xform_path=xform_out_path))
+                xform_path=xform_out_path),
+            pre_msg=generic_pre_msg.format("Generate XForm"))
 
         master.sep0 = ttk.Separator(master=master).grid(sticky="we")
 
@@ -114,7 +116,8 @@ class ODKToolsGui:
             label_text="Validate XForm", label_width=label_width,
             command=lambda: ODKToolsGui.validate_xform(
                 master=master, java_path=java_path, validate_path=validate_path,
-                xform_path=xform_in_path))
+                xform_path=xform_in_path),
+            pre_msg=generic_pre_msg.format("Validate XForm"))
 
         master.sep1 = ttk.Separator(master=master).grid(sticky="we")
 
@@ -128,7 +131,8 @@ class ODKToolsGui:
             label_text="Generate Images", label_width=label_width,
             command=lambda: ODKToolsGui.generate_images(
                 master=master,
-                xlsform_path=xlsform_path_images))
+                xlsform_path=xlsform_path_images),
+            pre_msg=generic_pre_msg.format("Generate Images"))
 
         master.sep2 = ttk.Separator(master=master).grid(sticky="we")
 
@@ -153,7 +157,8 @@ class ODKToolsGui:
                 master=master, xform_path=xform_sl_path,
                 sitelangs_path=sitelangs_path,
                 collect_settings=collect_settings,
-                nest_in_odk_folders=nest_in_odk_folders))
+                nest_in_odk_folders=nest_in_odk_folders),
+            pre_msg=generic_pre_msg.format("Generate Editions"))
         master.nest_in_odk_folders = ttk.Checkbutton(
             master=master.generate_editions, variable=nest_in_odk_folders,
             text="Nest output in 'odk/forms/*'")
@@ -181,7 +186,14 @@ class ODKToolsGui:
         master.output.textbox['yscrollcommand'] = master.output.scroll.set
 
     @staticmethod
-    def build_action_frame(master, label_text, label_width, command):
+    def textbox_pre_message(event, message):
+        """Clear the output textbox and insert the provided message."""
+        event.widget.master.master.output.textbox.delete("1.0", tkinter.END)
+        event.widget.master.master.output.textbox.insert(tkinter.END, message)
+
+    @staticmethod
+    def build_action_frame(master, label_text, label_width, command,
+                           pre_msg=None):
         """
         Generate a frame with a button for executing a command.
 
@@ -193,11 +205,19 @@ class ODKToolsGui:
         examples bake in a reference to the relevant variable (bound to a
         control) which is used to run the function.
 
+        So that the user is notified that the task connected to the "Run"
+        button has started, once the ButtonPress event fires, the specified
+        pre_msg is displayed in the main output textbox. The button's command
+        is implicitly attached to the subsequent ButtonRelease event. Refs:
+        - http://tcl.tk/man/tcl8.5/TkCmd/bind.htm#M7
+        - http://tcl.tk/man/tcl8.5/TkCmd/button.htm#M5
+
         Parameters.
         :param master: tk.Frame. The parent of the generated frame.
         :param label_text: str. The text to display next to the command button.
         :param label_width: int. How wide the label should be.
         :param command: function. What to do when the button is clicked.
+        :param pre_msg: str. Message to display in textbox on button press.
         :return: path frame (tk Frame), path variable (tk StringVar)
         """
         frame = ttk.Frame(master=master)
@@ -210,6 +230,10 @@ class ODKToolsGui:
 
         frame.button = ttk.Button(master=frame, text="Run", command=command)
         frame.button.grid(row=0, column=1, padx=5)
+        if pre_msg is not None:
+            frame.button.bind(
+                sequence="<ButtonPress>", add='+',
+                func=partial(ODKToolsGui.textbox_pre_message, message=pre_msg))
         return frame
 
     @staticmethod
@@ -435,16 +459,13 @@ class ODKToolsGui:
     @staticmethod
     def generate_xform(master, xlsform_path, xform_path):
         """
-        Run the XForm generator, clear the textbox and insert the output.
+        Run the XForm generator, and put the result in the main textbox.
 
         Parameters.
         :param master: tkinter.Frame. Frame where master.output.textbox is.
         :param xlsform_path: str. Path to XLSForm to convert.
         :param xform_path: str. Path for XForm XML output.
         """
-        master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(
-            tkinter.END, "Generate XForm running, please wait...\n\n")
         try:
             header, content = ODKToolsGui._run_generate_xform(
                 xlsform_path=xlsform_path.get(),
@@ -488,15 +509,12 @@ class ODKToolsGui:
     @staticmethod
     def generate_images(master, xlsform_path):
         """
-        Run the images generator, clear the textbox and insert the output.
+        Run the images generator, and put the result in the main textbox.
 
         Parameters.
         :param master: tkinter.Frame. Frame where master.output.textbox is.
         :param xlsform_path: str. Path to XLSForm to convert.
         """
-        master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(
-            tkinter.END, "Generate Images running, please wait...\n\n")
         try:
             header, content = ODKToolsGui._run_generate_images(
                 xlsform_path=xlsform_path.get())
@@ -631,11 +649,8 @@ class ODKToolsGui:
     @staticmethod
     def validate_xform(master, java_path, validate_path, xform_path):
         """
-        Run the XForm validation, clear the textbox and insert the output.
+        Run the XForm validation, and put the result in the main textbox.
         """
-        master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(
-            tkinter.END, "Validate XForm running, please wait...\n\n")
         try:
             header, content = ODKToolsGui._run_validate_xform(
                 java_path=java_path.get(),
@@ -668,16 +683,18 @@ class ODKToolsGui:
             "Site Languages path", sitelangs_path)
 
         valid_settings = True
+        unquoted_settings = None
         if collect_settings is not None:
             if len(collect_settings) != 0:
                 valid_settings = ODKToolsGui._validate_path(
                     "Collect settings path", collect_settings)
-            else:
-                collect_settings = None
+                unquoted_settings = collect_settings.strip(
+                    strip_wrapping_path_chars)
 
         if valid_xform and valid_sitelang and valid_settings:
             unquoted_xform = xform_path.strip(strip_wrapping_path_chars)
             unquoted_sitelang = sitelangs_path.strip(strip_wrapping_path_chars)
+
             header = "Generate Editions was run. Output below."
             editions_log = logging.getLogger(
                 'odk_tools.language_editions.editions')
@@ -687,7 +704,7 @@ class ODKToolsGui:
             Editions.write_language_editions(
                 xform_path=unquoted_xform, site_languages=unquoted_sitelang,
                 nest_in_odk_folders=nest_in_odk_folders,
-                collect_settings=collect_settings)
+                collect_settings=unquoted_settings)
         else:
             header = "Generate Editions not run: invalid arguments."
             content = None
@@ -698,7 +715,7 @@ class ODKToolsGui:
     def generate_editions(master, xform_path, sitelangs_path, collect_settings,
                           nest_in_odk_folders):
         """
-        Run the editions generator, clear the textbox and insert the output.
+        Run the editions generator, and put the result in the main textbox.
 
         Parameters.
         :param master: tkinter.Frame. Frame where master.output.textbox is.
@@ -707,9 +724,6 @@ class ODKToolsGui:
         :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
         :param collect_settings: str. Optional path to collect.settings file.
         """
-        master.output.textbox.delete("1.0", tkinter.END)
-        master.output.textbox.insert(
-            tkinter.END, "Generate Editions running, please wait...\n\n")
         try:
             header, content = ODKToolsGui._run_generate_editions(
                 xform_path=xform_path.get(),

@@ -28,6 +28,8 @@ class TestGui(unittest.TestCase):
             cls.cwd, "site_languages.xlsx")
         cls.fixture_path_sitelangs_single = os.path.join(
             cls.cwd, "site_languages_single.xlsx")
+        cls.fixture_path_collect_settings = os.path.join(
+            cls.cwd, "collect.settings")
         cls.package_root = os.path.dirname(os.path.dirname(cls.cwd))
         bin_directory = os.path.join(cls.package_root, "bin")
         cls.odk_validate_path = os.path.join(bin_directory, "ODK_Validate.jar")
@@ -234,13 +236,18 @@ class TestGui(unittest.TestCase):
         expected = "Generate Editions was run. Output below."
         xform_path = self.fixture_path_xform
         sitelangs_path = self.fixture_path_sitelangs
+        collect_settings = self.fixture_path_collect_settings
         patch_run = 'odk_tools.language_editions.' \
                     'editions.Editions._run_zip_jobs'
         with patch(patch_run, MagicMock()):
             header, _ = Gui._run_generate_editions(
                 xform_path=xform_path, sitelangs_path=sitelangs_path,
                 nest_in_odk_folders=0, collect_settings=None)
+            header_nest, _ = Gui._run_generate_editions(
+                xform_path=xform_path, sitelangs_path=sitelangs_path,
+                nest_in_odk_folders=1, collect_settings=collect_settings)
         self.assertEqual(expected, header)
+        self.assertEqual(expected, header_nest)
 
     def test_run_generate_editions_invalid_xform(self):
         """Should return error header message."""

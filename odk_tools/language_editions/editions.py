@@ -232,8 +232,7 @@ class Editions:
                 resource_name="Site languages", expected=".XLSX extension",
                 actual=site_languages_ext))
         if collect_settings is not None:
-            collect_settings = os.path.abspath(collect_settings)
-            collect_settings_base = os.path.basename(collect_settings)
+            collect_settings_base = os.path.basename(collect_settings).lower()
             if collect_settings_base != "collect.settings":
                 raise ValueError(Editions._path_error_format(
                     resource_name="Collect Settings",

@@ -206,7 +206,6 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images, "da2d10ye_english_label.png")
-        observed.save(ref_image, 'PNG', dpi=[300, 300])
         expected = Images._open_image(image_path=ref_image)
         self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
 
@@ -221,7 +220,6 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images,
                                  "da2d10ye_english_label_hint.png")
-        observed.save(ref_image, 'PNG', dpi=[300, 300])
         expected = Images._open_image(image_path=ref_image)
         self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
 
@@ -236,7 +234,6 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
         ref_image = os.path.join(self.ref_images,
                                  "da2d10ye_english_label_image.png")
-        observed.save(ref_image, 'PNG', dpi=[300, 300])
         expected = Images._open_image(image_path=ref_image)
         self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
 
