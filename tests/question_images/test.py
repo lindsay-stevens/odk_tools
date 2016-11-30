@@ -173,15 +173,87 @@ class TestImagesImage(_TestImagesBase):
 class TestImagesPrepareQuestionImages(_TestImagesBase):
     """Tests for Images._prepare_question_images()"""
 
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.ref_images = os.path.join(cls.cwd, "reference_images")
+        cls.ref_image_all = Images._open_image(
+            image_path=os.path.join(
+                cls.ref_images, "da2d10ye_english_all.png"))
+        cls.ref_image_label = Images._open_image(
+            image_path=os.path.join(
+                cls.ref_images, "da2d10ye_english_label.png"))
+        cls.ref_image_label_hint = Images._open_image(
+            image_path=os.path.join(
+                cls.ref_images, "da2d10ye_english_label_hint.png"))
+        cls.ref_image_label_image = Images._open_image(
+            image_path=os.path.join(
+                cls.ref_images, "da2d10ye_english_label_image.png"))
+        cls.template = ImageSettings.read(
+            xlsform_workbook=cls.xlsform1_workbook)
+
     def setUp(self):
         super().setUp()
-        template = ImageSettings.read(xlsform_workbook=self.xlsform1_workbook)
+
+        # Must be run level since the tests modify this complex object.
         settings = ImageContent.read(
-            xlsform_workbook=self.xlsform1_workbook, settings=template[2])
+            xlsform_workbook=self.xlsform1_workbook, settings=self.template[2])
         settings['image_content'] = [x for x in settings['image_content']
                                      if x['file_name_column'] == 'da2d10ye']
         self.settings = settings
-        self.ref_images = os.path.join(self.cwd, "reference_images")
+
+    @staticmethod
+    def quantify_image_difference(diff_image):
+        diff_image_data = list(diff_image.getdata())
+        diff_pixel_list = []
+        tiny_diffs = 0
+        minor_diffs = 0
+        large_diffs = 0
+        for pixel_rgb in diff_image_data:
+            biggest_channel_diff = max(pixel_rgb)
+            if biggest_channel_diff == 0:
+                continue
+            elif biggest_channel_diff < 3:
+                tiny_diffs += 1
+            elif biggest_channel_diff < 15:
+                minor_diffs += 1
+            else:
+                large_diffs += 1
+            diff_pixel_list.append(pixel_rgb)
+        diff_dict = {"tiny": tiny_diffs, "minor": minor_diffs,
+                     "large": large_diffs, "diff_list": diff_pixel_list}
+        pixel_count = len(diff_image_data)
+        return pixel_count, diff_dict
+
+    def test_image_diff_method_for_different_images(self):
+        """Should fail for obviously different images."""
+        ref_image1 = self.ref_image_all
+        ref_image2 = self.ref_image_label
+        diff_image = ImageChops.difference(ref_image1, ref_image2)
+        pixel_count, diff_dict = self.quantify_image_difference(diff_image)
+        self.assertFalse(diff_dict["tiny"] <= pixel_count * 0.01, diff_dict)
+        self.assertFalse(diff_dict["minor"] <= pixel_count * 0.001, diff_dict)
+        self.assertFalse(diff_dict["large"] == 0, diff_dict)
+
+    def test_image_diff_method_for_identical_images(self):
+        """Should pass for identical images."""
+        ref_image1 = self.ref_image_all
+        diff_image = ImageChops.difference(ref_image1, ref_image1)
+        pixel_count, diff_dict = self.quantify_image_difference(diff_image)
+        self.assertTrue(diff_dict["tiny"] <= pixel_count * 0.01, diff_dict)
+        self.assertTrue(diff_dict["minor"] <= pixel_count * 0.001, diff_dict)
+        self.assertTrue(diff_dict["large"] == 0, diff_dict)
+
+    def test_image_diff_method_for_almost_identical_images(self):
+        """Should pass for identical images."""
+        ref_image1 = self.ref_image_all
+        ref_image2 = Images._open_image(image_path=os.path.join(
+            self.ref_images, "da2d10ye_english_all_almost_identical.png"))
+        diff_image = ImageChops.difference(ref_image1, ref_image2)
+        pixel_count, diff_dict = self.quantify_image_difference(diff_image)
+        self.assertTrue(diff_dict["tiny"] <= pixel_count * 0.01, diff_dict)
+        self.assertTrue(diff_dict["minor"] <= pixel_count * 0.001, diff_dict)
+        self.assertTrue(diff_dict["large"] == 0, diff_dict)
 
     def test_all_content_types(self):
         """Should return image with label, hint and nested image."""
@@ -191,9 +263,12 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
-        ref_image = os.path.join(self.ref_images, "da2d10ye_english_all.png")
-        expected = Images._open_image(image_path=ref_image)
-        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
+        expected = self.ref_image_all
+        diff_image = ImageChops.difference(observed, expected)
+        pixel_count, diff_dict = self.quantify_image_difference(diff_image)
+        self.assertTrue(diff_dict["tiny"] <= pixel_count * 0.01, diff_dict)
+        self.assertTrue(diff_dict["minor"] <= pixel_count * 0.001, diff_dict)
+        self.assertTrue(diff_dict["large"] == 0, diff_dict)
 
     def test_label_only(self):
         """Should return image with label only."""
@@ -205,9 +280,12 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
-        ref_image = os.path.join(self.ref_images, "da2d10ye_english_label.png")
-        expected = Images._open_image(image_path=ref_image)
-        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
+        expected = self.ref_image_label
+        diff_image = ImageChops.difference(observed, expected)
+        pixel_count, diff_dict = self.quantify_image_difference(diff_image)
+        self.assertTrue(diff_dict["tiny"] <= pixel_count * 0.01, diff_dict)
+        self.assertTrue(diff_dict["minor"] <= pixel_count * 0.001, diff_dict)
+        self.assertTrue(diff_dict["large"] == 0, diff_dict)
 
     def test_label_and_hint_only(self):
         """Should return image with label only."""
@@ -218,10 +296,12 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
-        ref_image = os.path.join(self.ref_images,
-                                 "da2d10ye_english_label_hint.png")
-        expected = Images._open_image(image_path=ref_image)
-        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
+        expected = self.ref_image_label_hint
+        diff_image = ImageChops.difference(observed, expected)
+        pixel_count, diff_dict = self.quantify_image_difference(diff_image)
+        self.assertTrue(diff_dict["tiny"] <= pixel_count * 0.01, diff_dict)
+        self.assertTrue(diff_dict["minor"] <= pixel_count * 0.001, diff_dict)
+        self.assertTrue(diff_dict["large"] == 0, diff_dict)
 
     def test_label_and_nested_image_only(self):
         """Should return image with label and nested image."""
@@ -232,10 +312,12 @@ class TestImagesPrepareQuestionImages(_TestImagesBase):
         observed, _ = list(Images._prepare_question_images(
             base_image=base_image, pixels_from_top=pixels_from_top,
             settings=settings, output_path='', xlsform_path=self.xlsform1))[0]
-        ref_image = os.path.join(self.ref_images,
-                                 "da2d10ye_english_label_image.png")
-        expected = Images._open_image(image_path=ref_image)
-        self.assertIsNone(ImageChops.difference(observed, expected).getbbox())
+        expected = self.ref_image_label_image
+        diff_image = ImageChops.difference(observed, expected)
+        pixel_count, diff_dict = self.quantify_image_difference(diff_image)
+        self.assertTrue(diff_dict["tiny"] <= pixel_count * 0.01, diff_dict)
+        self.assertTrue(diff_dict["minor"] <= pixel_count * 0.001, diff_dict)
+        self.assertTrue(diff_dict["large"] == 0, diff_dict)
 
 
 class TestImagesPasteImage(TestCase):
