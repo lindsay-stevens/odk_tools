@@ -1,9 +1,9 @@
-python-docx>=0.8.5
-xlrd>=1.0.0
-Pillow>=3.4.2
-lxml>=3.6.0
-pyinstaller>=3.2
+python-docx==0.8.5
+xlrd==1.0.0
+Pillow==3.4.2
+lxml==3.6.0
+pyinstaller==3.2
+pyxform==0.9.24
 
--e git+https://github.com/lindsay-stevens/pyxform.git@py3-compat-and-fixes#egg=pyxform
 -e git+https://github.com/lindsay-stevens/xmltodict.git@ordered-children-short-tags#egg=xmltodict
 -e .

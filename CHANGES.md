@@ -1,5 +1,13 @@
 # Changelog
 
+## 2016.9
+- Fix validation of the "collect.settings" parameter for the "generate editions" task. This was missing steps used on all other path inputs that strip invalid characters around the path, like double quotes or whitespace.
+- Related to the above, add a missing test and remove an unnecessary conversion of the path to an absolute path.
+- Improve user feedback by making it so that when the "Run" button is pressed, the message indicating that the task was started is displayed in the main textbox before any work on that task is started. Previously, this was shown after the task was completed, which is kind of pointless.
+- Related to testing "generate images", the latest PIL version produces images that have an extremely small difference to the reference images. The difference is about 6 pixels that are off by less than 10 percent shading around some of the black text. It is not clear why this is so, but the images are still valid. Instead of doing fuzzy matching, the reference images were updated.
+- Dependencies: freeze these to specific versions, and switch from my pyxform fork to the master since my updates were merged recently.
+
+
 ## 2016.8
 - Fix unicode characters being mangled by the XForm patch step: by not 
   specifying the file encoding on file access, this broke the output of 

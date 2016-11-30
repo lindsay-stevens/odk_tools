@@ -159,7 +159,7 @@ configuration information if using Intellij / PyCharm.
 In addition to the above development environment, the following are required
 to prepare a release:
 
-- Install PyInstaller ```pip install pyinstaller```.
+- Install PyInstaller ```pip install pyinstaller -y```.
     + If this doesn't work, install pywin32 first.
 - Download a recent build of ODK Validate from GitHub [1], or build it locally.
   Save the file "ODK_Validate.jar" in the "bin" folder.
