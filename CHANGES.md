@@ -1,5 +1,10 @@
 # Changelog
 
+
+## 2016.10
+- Technical stuff related to 2016.9 issues with PIL. Changed the way that image tests evaluate whether the produced image is the same as the reference image, so that it tolerates a very small amount of practically imperceptible (and seemingly random) variability.
+
+
 ## 2016.9
 - Fix validation of the "collect.settings" parameter for the "generate editions" task. This was missing steps used on all other path inputs that strip invalid characters around the path, like double quotes or whitespace.
 - Related to the above, add a missing test and remove an unnecessary conversion of the path to an absolute path.
