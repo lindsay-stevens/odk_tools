@@ -1,55 +1,11 @@
 import tkinter
 import tkinter.filedialog
 import tkinter.messagebox
-from tkinter import ttk
-import os
-import sys
-import subprocess
-from pyxform.xls2xform import xls2xform_convert
-from pyxform.errors import PyXFormError
-from odk_tools.question_images import images
-from odk_tools.language_editions.editions import Editions
-from odk_tools import __version__
-import logging
-import collections
-import xmltodict
 from functools import partial
-
-strip_wrapping_path_chars = "\" \r\n\t"
-
-
-class _CapturingHandler(logging.Handler):
-    """
-    A logging handler capturing all (raw and formatted) logging output.
-
-    Largely the same as doing "from unittest.case import _CapturingHandler",
-    but copied here because it is a simple class, and the original has an
-    underscore prefix so it might change unexpectedly.
-
-    Usage:
-    Here's how to attach it to a logger, get the logs, and then detach it.
-
-    my_logger = logging.getLogger(name="logger_name")
-    capture_handler = _CapturingHandler(logger=my_logger)
-    log_messages = capture_handler.watcher.output
-    log_records = capture_handler.watcher.records
-    my_logger.removeHandler(hdlr=capture_handler)
-    """
-
-    def __init__(self, logger):
-        logging.Handler.__init__(self)
-        _LoggingWatcher = collections.namedtuple(
-            "_LoggingWatcher", ["records", "output"])
-        self.watcher = _LoggingWatcher([], [])
-        logger.addHandler(self)
-
-    def flush(self):
-        pass
-
-    def emit(self, record):
-        self.watcher.records.append(record)
-        msg = self.format(record)
-        self.watcher.output.append(msg)
+from tkinter import ttk
+from odk_tools.gui.wrappers import generate_images, generate_xform, \
+    validate_xform, generate_editions
+from odk_tools.gui import preferences
 
 
 class ODKToolsGui:
@@ -64,101 +20,101 @@ class ODKToolsGui:
         validation, or wrappers around commands that are run by clicking the
         button controls.
         """
-        title_string = ' '.join(["ODK Tools GUI", __version__])
-        master.title(title_string)
-        label_width = 20
-        textbox_width = 85
-        output_height = 25
-        xlsx_browse = {'filetypes': (('Excel Spreadsheet File', '.xlsx'),)}
-        xml_browse = {'filetypes': (('XForm XML File', '.xml'),)}
-        exe_browse = {'filetypes': (('Exe File', '.exe'),)}
-        jar_browse = {'filetypes': (('Java Jar File', '.jar'),)}
-        settings_browse = {'filetypes': (
-            ('Collect Settings File', '.settings'),)}
+        prefs = preferences.Preferences()
+        master.title(prefs.app_title)
+        ttk.Style().configure('.', font=prefs.font)
+        ODKToolsGui.build_generate_xform(master=master, prefs=prefs)
+        ODKToolsGui.build_validate_xform(master=master, prefs=prefs)
+        ODKToolsGui.build_generate_images(master=master, prefs=prefs)
+        ODKToolsGui.build_generate_editions(master=master, prefs=prefs)
+        ODKToolsGui.build_output_box(master=master, prefs=prefs)
 
-        font = ('Arial', 8)
-        ttk.Style().configure('.', font=font)
-        generic_pre_msg = "{0} task initiated, please wait...\n\n"
-
+    @staticmethod
+    def build_generate_xform(master, prefs):
+        """Setup for the Generate XForm task widgets."""
         master.xlsform_path, xlsform_path = ODKToolsGui.build_path_frame(
             master=master,
-            label_text="* XLSForm path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xlsx_browse)
-        master.xform_out_path, xform_out_path = ODKToolsGui.build_path_frame(
-            master=master,
-            label_text="XForm output path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xml_browse,
-            dialog_function=tkinter.filedialog.asksaveasfilename)
+            label_text="* XLSForm path", label_width=prefs.label_width,
+            textbox_width=prefs.textbox_width, browser_kw=prefs.xlsx_browse)
         master.generate_xform = ODKToolsGui.build_action_frame(
             master=master,
-            label_text="Generate XForm", label_width=label_width,
+            label_text="Generate XForm", label_width=prefs.label_width,
             command=lambda: ODKToolsGui.generate_xform(
-                master=master, xlsform_path=xlsform_path,
-                xform_path=xform_out_path),
-            pre_msg=generic_pre_msg.format("Generate XForm"))
+                master=master, xlsform_path=xlsform_path),
+            pre_msg=prefs.generic_pre_msg.format("Generate XForm"))
 
+    @staticmethod
+    def build_validate_xform(master, prefs):
+        """Setup for the Validate XForm task widgets."""
         master.sep0 = ttk.Separator(master=master).grid(sticky="we")
 
         master.xform_in_path, xform_in_path = ODKToolsGui.build_path_frame(
             master=master,
-            label_text="* XForm path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xml_browse)
+            label_text="* XForm path", label_width=prefs.label_width,
+            textbox_width=prefs.textbox_width, browser_kw=prefs.xml_browse)
         master.java_path, java_path = ODKToolsGui.build_path_frame(
             master=master,
-            label_text="Java path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=exe_browse)
+            label_text="Java path", label_width=prefs.label_width,
+            textbox_width=prefs.textbox_width, browser_kw=prefs.exe_browse)
         master.validate_path, validate_path = ODKToolsGui.build_path_frame(
             master=master,
-            label_text="ODK_Validate path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=jar_browse)
+            label_text="ODK_Validate path", label_width=prefs.label_width,
+            textbox_width=prefs.textbox_width, browser_kw=prefs.jar_browse)
         master.validate_xform = ODKToolsGui.build_action_frame(
             master=master,
-            label_text="Validate XForm", label_width=label_width,
+            label_text="Validate XForm", label_width=prefs.label_width,
             command=lambda: ODKToolsGui.validate_xform(
                 master=master, java_path=java_path, validate_path=validate_path,
                 xform_path=xform_in_path),
-            pre_msg=generic_pre_msg.format("Validate XForm"))
+            pre_msg=prefs.generic_pre_msg.format("Validate XForm"))
 
+    @staticmethod
+    def build_generate_images(master, prefs):
+        """Setup for the Generate Images task widgets."""
         master.sep1 = ttk.Separator(master=master).grid(sticky="we")
 
         master.xlsform_path_images, xlsform_path_images = \
             ODKToolsGui.build_path_frame(
                 master=master,
-                label_text="* XLSForm path", label_width=label_width,
-                textbox_width=textbox_width, browser_kw=xlsx_browse)
+                label_text="* XLSForm path", label_width=prefs.label_width,
+                textbox_width=prefs.textbox_width, browser_kw=prefs.xlsx_browse)
         master.generate_images = ODKToolsGui.build_action_frame(
             master=master,
-            label_text="Generate Images", label_width=label_width,
+            label_text="Generate Images", label_width=prefs.label_width,
             command=lambda: ODKToolsGui.generate_images(
-                master=master,
-                xlsform_path=xlsform_path_images),
-            pre_msg=generic_pre_msg.format("Generate Images"))
+                master=master, xlsform_path=xlsform_path_images),
+            pre_msg=prefs.generic_pre_msg.format("Generate Images"))
 
+    @staticmethod
+    def build_generate_editions(master, prefs):
+        """Setup for the Generate Editions task widgets."""
         master.sep2 = ttk.Separator(master=master).grid(sticky="we")
 
         master.xform_sl_path, xform_sl_path = ODKToolsGui.build_path_frame(
             master=master,
-            label_text="* XForm path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xml_browse)
+            label_text="* XForm path", label_width=prefs.label_width,
+            textbox_width=prefs.textbox_width, browser_kw=prefs.xml_browse)
         master.sitelangs_path, sitelangs_path = ODKToolsGui.build_path_frame(
             master=master,
-            label_text="* Site Languages path", label_width=label_width,
-            textbox_width=textbox_width, browser_kw=xlsx_browse)
+            label_text="* Site Languages path", label_width=prefs.label_width,
+            textbox_width=prefs.textbox_width, browser_kw=prefs.xlsx_browse)
         master.collect_settings, collect_settings = \
             ODKToolsGui.build_path_frame(
                 master=master,
-                label_text="Collect Settings path", label_width=label_width,
-                textbox_width=textbox_width, browser_kw=settings_browse)
+                label_text="Collect Settings path",
+                label_width=prefs.label_width,
+                textbox_width=prefs.textbox_width,
+                browser_kw=prefs.settings_browse)
         nest_in_odk_folders = tkinter.IntVar()
         master.generate_editions = ODKToolsGui.build_action_frame(
             master=master,
-            label_text="Generate Editions", label_width=label_width,
+            label_text="Generate Editions", label_width=prefs.label_width,
             command=lambda: ODKToolsGui.generate_editions(
                 master=master, xform_path=xform_sl_path,
                 sitelangs_path=sitelangs_path,
                 collect_settings=collect_settings,
                 nest_in_odk_folders=nest_in_odk_folders),
-            pre_msg=generic_pre_msg.format("Generate Editions"))
+            pre_msg=prefs.generic_pre_msg.format("Generate Editions"))
         master.nest_in_odk_folders = ttk.Checkbutton(
             master=master.generate_editions, variable=nest_in_odk_folders,
             text="Nest output in 'odk/forms/*'")
@@ -170,16 +126,19 @@ class ODKToolsGui:
         master.output.grid(sticky='w')
         master.output.rowconfigure(index=0, pad=10, weight=1)
 
+    @staticmethod
+    def build_output_box(master, prefs):
+        """Setup for the task results output box."""
         master.output.row_label = ttk.Label(
             master=master.output, text="Last run output",
-            width=label_width)
+            width=prefs.label_width)
         master.output.row_label.grid(row=0, column=0, padx=5, sticky="w")
 
         master.output.textbox = tkinter.Text(
-            master=master.output, width=textbox_width+10, height=output_height)
-        master.output.textbox.config(wrap='word', font=font)
+            master=master.output, width=prefs.textbox_width+10,
+            height=prefs.output_height)
+        master.output.textbox.config(wrap='word', font=prefs.font)
         master.output.textbox.grid(row=0, column=1, padx=5, columnspan=2)
-
         master.output.scroll = ttk.Scrollbar(
             master=master.output, command=master.output.textbox.yview)
         master.output.scroll.grid(row=0, column=3, padx=5, pady=5, sticky='ns')
@@ -187,7 +146,7 @@ class ODKToolsGui:
 
     @staticmethod
     def textbox_pre_message(event, message):
-        """Clear the output textbox and insert the provided message."""
+        """Clear the output Text field and insert the provided message."""
         event.widget.master.master.output.textbox.delete("1.0", tkinter.END)
         event.widget.master.master.output.textbox.insert(tkinter.END, message)
 
@@ -290,221 +249,47 @@ class ODKToolsGui:
         target_variable.set(dialog_function(**browser_kw))
 
     @staticmethod
-    def _validate_path(variable_name, path):
+    def textbox_replace(tk_end, widget, new_text):
         """
-        Check if the supplied path is not empty and corresponds to a file.
+        Clear a textbox widget and insert the new text.
 
-        If either check fails, launch a message box which states the error.
+        Important! This is specific to "Entry" widgets, for which the start
+        index is specified as 0. For "Text" widgets, the start index is instead
+        in the form of "row.col" e.g. delete("1.0", END).
 
-        Parameters.
-        :param variable_name: str. Name of variable to state in error messages.
-        :param path: str. Path to check.
-        :return: valid (bool) does the path appear to be valid.
+        :param tk_end: the tkinter.END constant meaning the final textbox char.
+        :param widget: reference to the widget to work with.
+        :param new_text: text to insert into the widget.
+        :return: None
         """
-        valid = False
-        if path is None:
-            path = ""
-
-        if len(path) == 0:
-            input_error = (
-                "{0} is empty. Please either:".format(variable_name),
-                "- Enter the path, or",
-                "- Select the path using the 'Browse...' button.")
-            tkinter.messagebox.showerror(
-                title="Input Error",
-                message="\n".join(input_error))
-        elif not os.path.isfile(path.strip(strip_wrapping_path_chars)):
-            file_error = (
-                "{0} does not correspond to a file.".format(variable_name),
-                "Please check the path and try again.")
-            tkinter.messagebox.showerror(
-                title="File Error",
-                message="\n".join(file_error))
-        else:
-            valid = True
-        return valid
+        if len(widget.get()) != 0:
+            widget.delete(0, tk_end)
+        widget.insert(tk_end, new_text)
 
     @staticmethod
-    def _get_same_xlsform_name(xlsform_path):
-        """
-        Generate a name for an XForm using the path and name of an XLSForm.
-
-        Parameters.
-        :param xlsform_path: str. Path to XLSForm to use.
-        return: str. Path for XForm XML file output.
-        """
-        xlsform_dir = os.path.dirname(xlsform_path)
-        xlsform_name = os.path.basename(xlsform_path)
-        xform_name = xlsform_name.replace(".xlsx", ".xml")
-        xform_path = os.path.join(xlsform_dir, xform_name)
-        return xform_path
-
-    @staticmethod
-    def _run_generate_xform(xlsform_path, xform_path):
-        """
-        Return XLS2XForm result, including any generated warnings.
-
-        Calls xls2xform_convert using the supplied xlsform_path.
-        - XLSForm path is always required.
-        - If xform_path is blank, use the XLSForm filename and path.
-
-        If any of the paths end up not being resolved, error message boxes are
-        opened to indicate this clearly to the user.
-
-        Parameters.
-        :param xlsform_path: str. Path to XLSForm to convert.
-        :param xform_path: str. Path for XForm XML output.
-        :return: tuple (output header message, message content)
-        """
-        valid_xlsform = ODKToolsGui._validate_path("XLSForm path", xlsform_path)
-
-        if len(xform_path) == 0:
-            xform_path = ODKToolsGui._get_same_xlsform_name(
-                xlsform_path=xlsform_path)
-
-        if valid_xlsform and xform_path is not None:
-            unquoted_xlsform = xlsform_path.strip(strip_wrapping_path_chars)
-            unquoted_xform = xform_path.strip(strip_wrapping_path_chars)
-            header = "XLS2XForm was run. Output below."
-            try:
-                content = xls2xform_convert(
-                    xlsform_path=unquoted_xlsform,
-                    xform_path=unquoted_xform,
-                    validate=False)
-                content.append(ODKToolsGui._xform_empty_question_label_patch(
-                    unquoted_xform))
-            except PyXFormError as error:
-                content = [str(error)]
-        else:
-            header = "XLS2XForm not run: invalid arguments."
-            content = None
-
-        return header, content
-
-    @staticmethod
-    def _xform_empty_question_label_patch(xform_path):
-        """
-        Insert blank question labels if none exist, to avoid bug in ODK Collect.
-
-        Issue present in ODK Collect v.1.4.10 r1061 where if a question does
-        not have a plain text label defined, the question overview activity
-        will cause an app crash. Specifically, when editing / resuming a saved
-        xform instance, the TextUtils markdown converter throws an NPE.
-
-        This function guards against that by inserting a blank question label
-        text, which avoids the NPE but doesn't affect the form appearance. The
-        text inserted is a HTML-encoded non-blank space: "&amp;nbsp;".
-
-        :param xform_path: Path to XForm to patch.
-        :type xform_path: str
-        :return: Result of patch action.
-        :rtype: str
-        """
-        try:
-            with open(xform_path, mode='r', encoding="UTF-8") as xform_file:
-                xform_content = xform_file.read()
-            xform_fixed, status = ODKToolsGui.\
-                _xform_empty_question_label_patch_content(xform_content)
-            xform_fixed_xml = xmltodict.unparse(
-                    xform_fixed, ordered_mixed_children=True,
-                    short_empty_elements=True)
-            with open(xform_path, mode='w', encoding="UTF-8") as fixed:
-                fixed.write(xform_fixed_xml)
-        except OSError as ose:
-            status = "Error during itext value patch:\n{0}".format(str(ose))
-        return status
-
-    @staticmethod
-    def _xform_empty_question_label_patch_content(xform_content):
-        """
-        Find all image-only question itext and add a blank plain text label.
-
-        Separate function because IO.
-
-        The parse parameter force_list ensures that even single values
-        of that element name will be in a list, so that we don't accidentally
-        loop through the characters of a string.
-
-        :param xform_content: XForm XML content to be modified.
-        :type xform_content: str
-        :return: (Patched XForm XML, status_message)
-        :rtype: tuple(collections.OrderedDict, str)
-        """
-        status_message = ""
-        force_list = ("bind", "translation", "text", "value")
-        xml_dict = xmltodict.parse(xform_content, force_list=force_list,
-                                   ordered_mixed_children=True)
-        xml_model = xml_dict["h:html"]["h:head"]["model"]
-        for bound_item in xml_model["bind"]:
-            for translation in xml_model["itext"]["translation"]:
-                for itext_item in translation["text"]:
-                    itext_item_id = itext_item.get("@id")
-                    bound_item_nodeset = bound_item.get("@nodeset")
-                    if itext_item_id is None or bound_item_nodeset is None:
-                        continue
-                    bound_item_ref = "{0}:label".format(bound_item_nodeset)
-                    itext_ref_match = itext_item_id == bound_item_ref
-                    itext_item_value = itext_item.get("value")
-                    has_plain_text_value = False
-                    for text_value in itext_item_value:
-                        if "@form" not in text_value:
-                            has_plain_text_value = True
-                        elif text_value.get("@form") in ["short", "long"]:
-                            has_plain_text_value = True
-                    if itext_ref_match and not has_plain_text_value:
-                        itext_item_value.append("&nbsp;")
-                        status_message = "Added itext value patch (&nbsp; fix)."
-        return xml_dict, status_message
-
-    @staticmethod
-    def generate_xform(master, xlsform_path, xform_path):
+    def generate_xform(master, xlsform_path):
         """
         Run the XForm generator, and put the result in the main textbox.
+
+        If the task was run, copy the parameters down into the other task
+        path input text boxes. The XForm file is saved adjacent to the XLSForm,
+        with the same name except with an XML extension.
 
         Parameters.
         :param master: tkinter.Frame. Frame where master.output.textbox is.
         :param xlsform_path: str. Path to XLSForm to convert.
-        :param xform_path: str. Path for XForm XML output.
         """
-        try:
-            header, content = ODKToolsGui._run_generate_xform(
-                xlsform_path=xlsform_path.get(),
-                xform_path=xform_path.get())
-            text = ODKToolsGui._format_output(header=header, content=content)
-            master.output.textbox.insert(tkinter.END, text)
-        except Exception as e:
-            master.output.textbox.insert(tkinter.END, repr(e))
-
-    @staticmethod
-    def _run_generate_images(xlsform_path):
-        """
-        Return image generation result, including any stderr / stdout content.
-
-        Calls write_images using the supplied xlsform_path.
-        - XLSForm path is always required.
-
-        If the paths is not resolved, error message boxes are opened to
-        indicate this clearly to the user.
-
-        Parameters.
-        :param xlsform_path: str. Path to XLSForm to convert.
-        :return: tuple (output header message, message content)
-        """
-        valid_xlsform = ODKToolsGui._validate_path("XLSForm path", xlsform_path)
-
-        if valid_xlsform:
-            unquoted_xlsform = xlsform_path.strip(strip_wrapping_path_chars)
-            header = "Generate Images was run. Output below."
-            images_log = logging.getLogger('odk_tools.question_images.images')
-            images_log.setLevel("DEBUG")
-            log_capture = _CapturingHandler(logger=images_log)
-            content = log_capture.watcher.output
-            images.write_images(xlsform_path=unquoted_xlsform)
-        else:
-            header = "Generate Images not run: invalid arguments."
-            content = None
-
-        return header, content
+        result, xform_path_used, xlsform_path_used = generate_xform.wrapper(
+            xlsform_path=xlsform_path.get())
+        master.output.textbox.insert(tkinter.END, result)
+        if xform_path_used is not None:
+            tk_end = tkinter.END
+            updates = [(master.xlsform_path.textbox, xlsform_path_used),
+                       (master.xform_in_path.textbox, xform_path_used),
+                       (master.xlsform_path_images.textbox, xlsform_path_used),
+                       (master.xform_sl_path.textbox, xform_path_used)]
+            for w, t in updates:
+                ODKToolsGui.textbox_replace(tk_end=tk_end, widget=w, new_text=t)
 
     @staticmethod
     def generate_images(master, xlsform_path):
@@ -515,201 +300,28 @@ class ODKToolsGui:
         :param master: tkinter.Frame. Frame where master.output.textbox is.
         :param xlsform_path: str. Path to XLSForm to convert.
         """
-        try:
-            header, content = ODKToolsGui._run_generate_images(
-                xlsform_path=xlsform_path.get())
-            text = ODKToolsGui._format_output(header=header, content=content)
-            master.output.textbox.insert(tkinter.END, text)
-        except Exception as e:
-            master.output.textbox.insert(tkinter.END, repr(e))
-
-    @staticmethod
-    def _current_directory():
-        """
-        Get the path to the current executing file.
-
-        As a script, __file__ works, but as a frozen / pyinstaller exe, the
-        sys.executable is required to get the right path.
-
-        Adapted from http://stackoverflow.com/a/404750.
-
-        :return: str. Path to currently executing script / executable.
-        """
-        if getattr(sys, 'frozen', False):
-            application_path = os.path.dirname(sys.executable)
-        else:
-            application_path = os.path.dirname(__file__)
-        return application_path
-
-    @staticmethod
-    def _popen_kwargs():
-        """Common keyword arguments for subprocess.Popen."""
-        return {'universal_newlines': True,
-                'cwd': os.path.expanduser("~"),
-                'stdin': subprocess.PIPE,
-                'stdout': subprocess.PIPE,
-                'stderr': subprocess.PIPE}
-
-    @staticmethod
-    def _is_java_callable(popen_kwargs):
-        """
-        Check if Java can be invoked from JAVA_HOME, and return the exec path.
-
-        Parameters.
-        :param popen_kwargs: dict. Options to pass through to subprocess.Popen.
-        :return: bool (working java -version), str (path to java)
-        """
-        found = False
-        path = ''
-        java_home = os.environ.get('JAVA_HOME')
-        if java_home is not None:
-            if os.name == "nt":
-                path = '"{}"'.format(os.path.join(java_home, "bin", "java.exe"))
-            else:
-                path = os.path.join(java_home, "bin", "java")
-            cmd = '{} -version'.format(path)
-            with subprocess.Popen(cmd, **popen_kwargs) as p:
-                output = p.stderr.read()
-            found = output.startswith('java version')
-        return found, path
-
-    @staticmethod
-    def _locate_odk_validate(current_directory):
-        """
-        Check if ODK_Validate is in the current directory.
-
-        :return: str. Absolute path to "ODK_Validate.jar".
-        """
-        odk_validate_path = None
-        local_validate = os.path.join(current_directory, 'ODK_Validate.jar')
-        if os.path.isfile(local_validate):
-            odk_validate_path = os.path.normpath(local_validate)
-        return odk_validate_path
-
-    @staticmethod
-    def _run_validate_xform(java_path, validate_path, xform_path):
-        """
-        Return ODK_Validate result, guessing at java and odk_validate location.
-
-        Calls ODK_Validate.jar using Java and the supplied XForm XML path.
-        - If java_path is blank, try to find it from JAVA_HOME environment var.
-        - If validate_path is blank, try to find it in the current directory.
-        - XForm path is always required.
-
-        If any of the paths end up not being resolved, error message boxes are
-        opened to indicate this clearly to the user.
-
-        Parameters.
-        :param java_path: str. Path to java binary.
-        :param validate_path: str. Path to ODK_Validate.jar.
-        :param xform_path: str. Path to XForm XML file to validate.
-        :return: tuple (output header message, message content)
-        """
-        popen_kwargs = ODKToolsGui._popen_kwargs()
-        if len(java_path) == 0:
-            valid_java, java_path = ODKToolsGui._is_java_callable(
-                popen_kwargs=popen_kwargs)
-        else:
-            valid_java = ODKToolsGui._validate_path("Java path", java_path)
-
-        if len(validate_path) == 0:
-            current_directory = ODKToolsGui._current_directory()
-            validate_path = ODKToolsGui._locate_odk_validate(
-                current_directory=current_directory)
-        valid_validate = ODKToolsGui._validate_path(
-            "ODK_Validate path", validate_path)
-
-        valid_xform = ODKToolsGui._validate_path(
-            "XForm path", xform_path)
-
-        if valid_java and valid_validate and valid_xform:
-            unquoted_validate = validate_path.strip(strip_wrapping_path_chars)
-            unquoted_xform = xform_path.strip(strip_wrapping_path_chars)
-            cmd = ['java', '-jar', unquoted_validate, unquoted_xform]
-            env = {'PATH': java_path}
-            header = "Validate was run. Output below."
-            with subprocess.Popen(cmd, env=env, **popen_kwargs) as p:
-                content = [p.stderr.read(), p.stdout.read()]
-        else:
-            header = "Validate not run: invalid arguments."
-            content = None
-
-        return header, content
-
-    @staticmethod
-    def _format_output(header, content):
-        """
-        Return the formatted header and content, in this case line separated.
-        """
-        if content is not None:
-            return "\n\n".join([header, *content])
-        else:
-            return header
+        result = generate_images.wrapper(
+            xlsform_path=xlsform_path.get())
+        master.output.textbox.insert(tkinter.END, result)
 
     @staticmethod
     def validate_xform(master, java_path, validate_path, xform_path):
         """
         Run the XForm validation, and put the result in the main textbox.
+
+        Parameters.
+        :param master: tkinter.Frame. Frame where master.output.textbox is.
+        :param java_path: str. Optional path to java.exe, otherwise this is
+          looked for in the envar JAVA_HOME.
+        :param validate_path: str. Optional path to ODK_Validate.jar. This is
+          packaged with the GUI but maybe a different version is desired.
+        :param xform_path: str. Path to XLSForm to convert.
         """
-        try:
-            header, content = ODKToolsGui._run_validate_xform(
+        result = validate_xform.wrapper(
                 java_path=java_path.get(),
                 validate_path=validate_path.get(),
                 xform_path=xform_path.get())
-            text = ODKToolsGui._format_output(header=header, content=content)
-            master.output.textbox.insert(tkinter.END, text)
-        except Exception as e:
-            master.output.textbox.insert(tkinter.END, repr(e))
-
-    @staticmethod
-    def _run_generate_editions(xform_path, sitelangs_path, nest_in_odk_folders,
-                               collect_settings=None,):
-        """
-        Return edition generation result, including any stderr / stdout content.
-
-        If the paths is not resolved, error message boxes are opened to
-        indicate this clearly to the user.
-
-        Parameters.
-        :param xform_path: str. Path to XLSForm to convert.
-        :param sitelangs_path: str. Path to site languages spreadsheet.
-        :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
-        :param collect_settings: Path to collect.settings file to include
-            in nested output folders.
-        :return: tuple (output header message, message content)
-        """
-        valid_xform = ODKToolsGui._validate_path("XLSForm path", xform_path)
-        valid_sitelang = ODKToolsGui._validate_path(
-            "Site Languages path", sitelangs_path)
-
-        valid_settings = True
-        unquoted_settings = None
-        if collect_settings is not None:
-            if len(collect_settings) != 0:
-                valid_settings = ODKToolsGui._validate_path(
-                    "Collect settings path", collect_settings)
-                unquoted_settings = collect_settings.strip(
-                    strip_wrapping_path_chars)
-
-        if valid_xform and valid_sitelang and valid_settings:
-            unquoted_xform = xform_path.strip(strip_wrapping_path_chars)
-            unquoted_sitelang = sitelangs_path.strip(strip_wrapping_path_chars)
-
-            header = "Generate Editions was run. Output below."
-            editions_log = logging.getLogger(
-                'odk_tools.language_editions.editions')
-            editions_log.setLevel('DEBUG')
-            log_capture = _CapturingHandler(logger=editions_log)
-            content = log_capture.watcher.output
-            Editions.write_language_editions(
-                xform_path=unquoted_xform, site_languages=unquoted_sitelang,
-                nest_in_odk_folders=nest_in_odk_folders,
-                collect_settings=unquoted_settings)
-        else:
-            header = "Generate Editions not run: invalid arguments."
-            content = None
-
-        return header, content
+        master.output.textbox.insert(tkinter.END, result)
 
     @staticmethod
     def generate_editions(master, xform_path, sitelangs_path, collect_settings,
@@ -724,16 +336,12 @@ class ODKToolsGui:
         :param nest_in_odk_folders: int. 1=yes, 0=no. Nest in /odk/forms/*.
         :param collect_settings: str. Optional path to collect.settings file.
         """
-        try:
-            header, content = ODKToolsGui._run_generate_editions(
+        result = generate_editions.wrapper(
                 xform_path=xform_path.get(),
                 sitelangs_path=sitelangs_path.get(),
                 collect_settings=collect_settings.get(),
                 nest_in_odk_folders=nest_in_odk_folders.get())
-            text = ODKToolsGui._format_output(header=header, content=content)
-            master.output.textbox.insert(tkinter.END, text)
-        except Exception as e:
-            master.output.textbox.insert(tkinter.END, repr(e))
+        master.output.textbox.insert(tkinter.END, result)
 
 
 if __name__ == "__main__":

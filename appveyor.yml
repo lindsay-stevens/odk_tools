@@ -8,11 +8,6 @@ environment:
     # a later point release.
     # See: http://www.appveyor.com/docs/installed-software#python
 
-    - PYTHON: "C:\\Python35"
-      PYTHON_VERSION: "3.5.0"
-      PYTHON_ARCH: "32"
-      PYTHON_WIN: "win32"
-
     - PYTHON: "C:\\Python35-x64"
       PYTHON_VERSION: "3.5.0"
       PYTHON_ARCH: "64"
@@ -73,7 +68,7 @@ deploy:
   release: $(APPVEYOR_REPO_TAG_NAME)
   description: >
     AppVeyor build. Includes Python source dist, wheel, and self-contained
-    executable builds of the GUI app for Windows 32-bit and 64-bit.
+    executable builds of the GUI app for Windows 64-bit.
   provider: GitHub
   auth_token:
     secure: NtPZXcWIFDe2fOnxFYxDAlnbiVRuClb3A+wlkdB0iXBuyEbgIQmtRRdHSP4jyacd
