@@ -1,6 +1,14 @@
 # Changelog
 
 
+## 2016.11
+- Removed the option to specify XForm output path for Generate XForm task path. I hardly ever use it and it's always going to the same location with the same name but as XML, so that behaviour is now locked in
+- After a successful run of the Generate XForm task, the relevant XForm and XLSForm paths will be copied down in to the input boxes for the other tasks, assuming that they're going to be done in sequence anyway
+- Change the input validation behaviour from using a pop-up message box to instead use the output textbox, so that all feedback uses the same mechanism
+- Update the user guide to match the above interface and behavioural changes
+- Big code restructure to untangle the parts that create the GUI from the parts that manage running the tasks, to make it easier to work with and to test. In particular, splitting off the validation parts means that all the path validation is in a separate module, so the previous gui tests that were essentially permutations on path validation are not needed.
+
+
 ## 2016.10
 - Technical stuff related to 2016.9 issues with PIL. Changed the way that image tests evaluate whether the produced image is the same as the reference image, so that it tolerates a very small amount of practically imperceptible (and seemingly random) variability.
 
